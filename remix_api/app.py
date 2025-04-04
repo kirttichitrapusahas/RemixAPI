@@ -55,7 +55,11 @@ def remix():
 
 @app.route('/download/<filename>')
 def download(filename):
-    return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
+     file_path = os.path.join(OUTPUT_DIR, filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
+    else:
+        return "File not found", 404
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
