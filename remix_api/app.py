@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_file
 import os
 import uuid
 import subprocess
@@ -29,18 +29,25 @@ def remix():
         return jsonify({"error": "Both URLs are required"}), 400
 
     session_id = str(uuid.uuid4())
-    instrumental_path = f"{session_id}_instr.mp3"
-    vocals_path = f"{session_id}_vocals.mp3"
-    remix_path = os.path.join(OUTPUT_DIR, f"{session_id}_remix.mp3")
+    instrumental_path = os.path.abspath(f"{session_id}_instr.mp3")
+    vocals_path = os.path.abspath(f"{session_id}_vocals.mp3")
+    remix_path = os.path.abspath(os.path.join(OUTPUT_DIR, f"{session_id}_remix.mp3"))
 
     try:
         # Download audio files
         download_file(instrumental_url, instrumental_path)
         download_file(vocals_url, vocals_path)
 
-        # Remix with FFmpeg
+        # Remix with FFmpeg and capture error output
         command = f"ffmpeg -i {instrumental_path} -i {vocals_path} -filter_complex '[0:a][1:a]amix=inputs=2:duration=first' {remix_path}"
-        subprocess.run(command, shell=True, check=True)
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            print("FFmpeg Error:", result.stderr)
+            return jsonify({"error": "Remix failed", "details": result.stderr}), 500
+
+        if not os.path.exists(remix_path):
+            return jsonify({"error": "Remix file was not created"}), 500
 
         return jsonify({
             "remix_url": f"/download/{os.path.basename(remix_path)}"
