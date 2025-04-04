@@ -15,6 +15,10 @@ def download_file(url, filename):
             if chunk:
                 f.write(chunk)
 
+@app.route("/")
+def home():
+    return "🎶 Remix API is running on Render!"
+
 @app.route('/remix', methods=['POST'])
 def remix():
     data = request.json
@@ -30,11 +34,11 @@ def remix():
     remix_path = os.path.join(OUTPUT_DIR, f"{session_id}_remix.mp3")
 
     try:
-        # Download
+        # Download audio files
         download_file(instrumental_url, instrumental_path)
         download_file(vocals_url, vocals_path)
 
-        # Create remix using FFmpeg
+        # Remix with FFmpeg
         command = f"ffmpeg -i {instrumental_path} -i {vocals_path} -filter_complex '[0:a][1:a]amix=inputs=2:duration=first' {remix_path}"
         subprocess.run(command, shell=True, check=True)
 
@@ -45,7 +49,7 @@ def remix():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        # Cleanup downloaded inputs
+        # Clean up temp input files
         if os.path.exists(instrumental_path): os.remove(instrumental_path)
         if os.path.exists(vocals_path): os.remove(vocals_path)
 
@@ -54,4 +58,5 @@ def download(filename):
     return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(debug=True, host="0.0.0.0", port=port)
