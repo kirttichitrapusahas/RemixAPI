@@ -29,22 +29,22 @@ def remix():
         return jsonify({"error": "Both URLs are required"}), 400
 
     session_id = str(uuid.uuid4())
-    instrumental_path = os.path.abspath(f"{session_id}_instr.mp3")
-    vocals_path = os.path.abspath(f"{session_id}_vocals.mp3")
-    remix_path = os.path.abspath(os.path.join(OUTPUT_DIR, f"{session_id}_remix.mp3"))
+    instrumental_path = f"{session_id}_instr.mp3"
+    vocals_path = f"{session_id}_vocals.mp3"
+    remix_path = os.path.join(OUTPUT_DIR, f"{session_id}_remix.mp3")
 
     try:
-        # Download audio files
         download_file(instrumental_url, instrumental_path)
         download_file(vocals_url, vocals_path)
 
-        # Remix with FFmpeg and capture error output
         command = f"ffmpeg -i {instrumental_path} -i {vocals_path} -filter_complex '[0:a][1:a]amix=inputs=2:duration=first' {remix_path}"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        print("Running command:", command)
+
+        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         if result.returncode != 0:
-            print("FFmpeg Error:", result.stderr)
-            return jsonify({"error": "Remix failed", "details": result.stderr}), 500
+            print("FFmpeg Error:", result.stderr.decode())
+            return jsonify({"error": "Remix failed", "details": result.stderr.decode()}), 500
 
         if not os.path.exists(remix_path):
             return jsonify({"error": "Remix file was not created"}), 500
@@ -56,7 +56,6 @@ def remix():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        # Clean up temp input files
         if os.path.exists(instrumental_path): os.remove(instrumental_path)
         if os.path.exists(vocals_path): os.remove(vocals_path)
 
