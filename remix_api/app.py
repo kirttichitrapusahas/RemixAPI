@@ -1,9 +1,13 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 import os
 import uuid
 import subprocess
 import requests
 import logging
+
+# Firebase Admin
+import firebase_admin
+from firebase_admin import credentials, storage
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -11,7 +15,13 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Absolute path to ensure clarity
+# Firebase Init
+cred = credentials.Certificate("firebase_credentials.json")
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'ai-song-generator-d228c.firebasestorage.app'
+})
+bucket = storage.bucket()
+
 CURRENT_DIR = os.getcwd()
 OUTPUT_DIR = os.path.join(CURRENT_DIR, "outputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -42,14 +52,11 @@ def remix():
     session_id = str(uuid.uuid4())
     instrumental_path = f"{session_id}_instr.mp3"
     vocals_path = f"{session_id}_vocals.mp3"
-    remix_path = os.path.join(OUTPUT_DIR, f"{session_id}_remix.mp3")
+    remix_filename = f"{session_id}_remix.mp3"
+    remix_path = os.path.join(OUTPUT_DIR, remix_filename)
 
     try:
         logger.info(f"🆔 Session ID: {session_id}")
-        logger.info(f"📁 Current working directory: {os.getcwd()}")
-        logger.info(f"📂 OUTPUT_DIR: {OUTPUT_DIR}")
-        logger.info(f"📄 Expected remix path: {os.path.abspath(remix_path)}")
-
         download_file(instrumental_url, instrumental_path)
         download_file(vocals_url, vocals_path)
 
@@ -60,47 +67,35 @@ def remix():
             "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=first",
             remix_path
         ]
-        logger.info(f"▶️ Running FFmpeg command: {' '.join(command)}")
-
+        logger.info(f"▶️ Running FFmpeg: {' '.join(command)}")
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        logger.info(f"📤 FFmpeg stdout:\n{result.stdout.decode()}")
-        logger.info(f"📥 FFmpeg stderr:\n{result.stderr.decode()}")
-
         if result.returncode != 0:
-            logger.error("❌ FFmpeg failed")
+            logger.error(f"❌ FFmpeg failed:\n{result.stderr.decode()}")
             return jsonify({"error": "Remix failed", "details": result.stderr.decode()}), 500
 
-        logger.info(f"🔍 Checking remix file: {remix_path}")
         if not os.path.exists(remix_path):
-            logger.error("❌ Remix file not created")
             return jsonify({"error": "Remix file was not created"}), 500
 
-        logger.info(f"✅ Remix created successfully at: {os.path.abspath(remix_path)}")
-        logger.info(f"📂 Output folder contents: {os.listdir(OUTPUT_DIR)}")
+        # Upload to Firebase Storage
+        blob = bucket.blob(f"remixes/{remix_filename}")
+        blob.upload_from_filename(remix_path)
+        blob.make_public()  # Optional: Make file public
+
+        logger.info(f"✅ Uploaded to Firebase: {blob.public_url}")
 
         return jsonify({
-            "remix_url": f"/download/{os.path.basename(remix_path)}"
+            "remix_url": blob.public_url
         })
 
     except Exception as e:
         logger.exception("🔥 Exception during remix process")
         return jsonify({"error": str(e)}), 500
     finally:
-        if os.path.exists(instrumental_path): os.remove(instrumental_path)
-        if os.path.exists(vocals_path): os.remove(vocals_path)
-
-@app.route('/download/<filename>')
-def download(filename):
-    file_path = os.path.join(OUTPUT_DIR, filename)
-    logger.info(f"⬇️ Download request for: {file_path}")
-    if os.path.exists(file_path):
-        return send_file(file_path, as_attachment=True)
-    else:
-        logger.warning("🚫 Requested file not found")
-        return "File not found", 404
+        for f in [instrumental_path, vocals_path, remix_path]:
+            if os.path.exists(f):
+                os.remove(f)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
-    logger.info(f"🚀 Starting Remix API on port {port}")
     app.run(debug=True, host="0.0.0.0", port=port)
