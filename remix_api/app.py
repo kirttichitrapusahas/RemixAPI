@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Register new route
+from download_mp3 import download_mp3_bp
+app.register_blueprint(download_mp3_bp)
+
 # Firebase Init
 cred = credentials.Certificate("firebase_credentials.json")
 firebase_admin.initialize_app(cred, {
