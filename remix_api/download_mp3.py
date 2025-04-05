@@ -20,7 +20,7 @@ def download_mp3():
     logger.info("🎧 Received request to /download_mp3")
 
     data = request.get_json()
-    youtube_url = data.get('url')
+    youtube_url = data.get('youtube_url')
     logger.info(f"🔗 YouTube URL received: {youtube_url}")
 
     if not youtube_url:
