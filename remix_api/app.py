@@ -58,19 +58,18 @@ def remix():
             logger.error("FFmpeg failed")
             return jsonify({"error": "Remix failed", "details": result.stderr.decode()}), 500
 
-        logger.info(f"Checking if remix file exists: {remix_path}")
         if not os.path.exists(remix_path):
             logger.error("Remix file not created")
             return jsonify({"error": "Remix file was not created"}), 500
 
         logger.info(f"Remix successfully created: {remix_path}")
-        return jsonify({
-            "remix_url": f"/download/{os.path.basename(remix_path)}"
-        })
+        remix_url = f"/download/{os.path.basename(remix_path)}"
+        return jsonify({"remix_url": remix_url})
 
     except Exception as e:
         logger.exception("Exception during remix process")
         return jsonify({"error": str(e)}), 500
+
     finally:
         if os.path.exists(instrumental_path): os.remove(instrumental_path)
         if os.path.exists(vocals_path): os.remove(vocals_path)
@@ -80,7 +79,7 @@ def download(filename):
     file_path = os.path.join(OUTPUT_DIR, filename)
     logger.info(f"Download request: {file_path}")
     if os.path.exists(file_path):
-        return send_file(file_path, as_attachment=True)
+        return send_file(file_path, mimetype="audio/mpeg", as_attachment=True)
     else:
         logger.warning("Requested file not found")
         return "File not found", 404
@@ -88,4 +87,4 @@ def download(filename):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     logger.info(f"Starting Remix API on port {port}")
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(debug=False, host="0.0.0.0", port=port)
