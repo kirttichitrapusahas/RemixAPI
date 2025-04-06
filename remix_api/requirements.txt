@@ -1,5 +1,7 @@
 flask
 requests
-ffmpeg-python
 firebase-admin
-yt-dlp
+ffmpeg-python
+spleeter
+numpy
+tensorflow
