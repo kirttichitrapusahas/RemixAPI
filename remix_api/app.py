@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-
 # Firebase Init
 cred = credentials.Certificate("firebase_credentials.json")
 firebase_admin.initialize_app(cred, {
@@ -37,6 +36,9 @@ def download_file(url, filename):
     logger.info(f"✅ Download complete: {filename}")
 
 def split_audio_with_spleeter(input_path, output_dir, stems="2stems"):
+    if not os.path.exists(input_path):
+        raise Exception(f"Input file not found: {input_path}")
+
     command = [
         "spleeter", "separate",
         "-p", f"spleeter:{stems}",
@@ -44,28 +46,40 @@ def split_audio_with_spleeter(input_path, output_dir, stems="2stems"):
         input_path
     ]
     logger.info(f"🎼 Running Spleeter: {' '.join(command)}")
-    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     if result.returncode != 0:
-        logger.error(f"❌ Spleeter failed:\n{result.stderr.decode()}")
+        logger.error("❌ Spleeter failed with stderr:")
+        logger.error(result.stderr)
         raise Exception("Spleeter separation failed")
 
     logger.info("✅ Spleeter separation complete")
 
 def merge_audio(instrumental_path, vocal_path, output_path):
+    if not os.path.exists(instrumental_path):
+        raise Exception(f"Instrumental file not found: {instrumental_path}")
+    if not os.path.exists(vocal_path):
+        raise Exception(f"Vocal file not found: {vocal_path}")
+
     command = [
         "ffmpeg",
+        "-y",  # Overwrite if file exists
         "-i", instrumental_path,
         "-i", vocal_path,
         "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=3",
         output_path
     ]
     logger.info(f"🎛️ Running FFmpeg: {' '.join(command)}")
-    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     if result.returncode != 0:
-        logger.error(f"❌ FFmpeg failed:\n{result.stderr.decode()}")
+        logger.error("❌ FFmpeg failed with stderr:")
+        logger.error(result.stderr)
         raise Exception("FFmpeg merge failed")
+
+    logger.info("✅ FFmpeg merge complete")
 
 @app.route("/")
 def home():
@@ -98,9 +112,13 @@ def remix():
         split_audio_with_spleeter(instrumental_input, instrumental_dir)
         split_audio_with_spleeter(vocals_input, vocals_dir)
 
-        instrumental_out = os.path.join(instrumental_dir, os.path.splitext(instrumental_input)[0], "accompaniment.wav")
-        vocals_out = os.path.join(vocals_dir, os.path.splitext(vocals_input)[0], "vocals.wav")
+        instr_folder = os.path.splitext(instrumental_input)[0]
+        vocal_folder = os.path.splitext(vocals_input)[0]
 
+        instrumental_out = os.path.join(instrumental_dir, instr_folder, "accompaniment.wav")
+        vocals_out = os.path.join(vocals_dir, vocal_folder, "vocals.wav")
+
+        logger.info(f"🔍 Checking outputs: {instrumental_out} & {vocals_out}")
         if not os.path.exists(instrumental_out) or not os.path.exists(vocals_out):
             raise Exception("Spleeter output not found")
 
