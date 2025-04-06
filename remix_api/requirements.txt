@@ -6,5 +6,5 @@ ffmpeg-python
 # Compatible versions for Spleeter
 tensorflow==2.13.0
 spleeter==2.4.2
-numpy==1.19.5
+numpy==1.24.3
 librosa==0.8.0
