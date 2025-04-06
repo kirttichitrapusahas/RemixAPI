@@ -1,8 +1,9 @@
-# Flask and compatible Werkzeug version to avoid url_quote error
-Flask==2.2.5
-Werkzeug==2.2.3
+# Compatible Flask version that works with typer/click used by spleeter
+Flask==2.0.3
+Werkzeug==2.0.3
+click==7.1.2
 
-# Core packages
+# Other required packages
 requests==2.31.0
 firebase-admin==6.4.0
 ffmpeg-python==0.2.0
