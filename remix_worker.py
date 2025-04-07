@@ -99,7 +99,10 @@ def process_job(job):
 def watch_queue():
     while True:
         pending_jobs = db.collection("remix_jobs").where("status", "==", "pending").stream()
+        if not pending_jobs:
+            logger.info("No pending jobs found.")
         for job in pending_jobs:
+            logger.info(f"Processing job {job.id}")
             db.collection("remix_jobs").document(job.id).update({"status": "processing"})
             process_job(job)
         time.sleep(5)
