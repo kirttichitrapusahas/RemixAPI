@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Firebase initialization
 cred = credentials.Certificate("firebase_credentials.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
@@ -39,6 +40,19 @@ def remix_request():
 
     db.collection("remix_jobs").document(job_id).set(job_data)
     return jsonify({"message": "Remix job submitted", "job_id": job_id}), 200
+
+# New route for checking job status by job_id
+@app.route('/remix/<job_id>', methods=['GET'])
+def get_remix_status(job_id):
+    # Fetch the job from Firestore using the job_id
+    job_ref = db.collection("remix_jobs").document(job_id)
+    job = job_ref.get()
+
+    if job.exists:
+        job_data = job.to_dict()
+        return jsonify(job_data), 200
+    else:
+        return jsonify({"error": "Job not found"}), 404
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
