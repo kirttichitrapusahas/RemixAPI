@@ -19,19 +19,26 @@ OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def download_file(url, filename):
+    logger.info(f"Downloading file from {url} to {filename}...")
     r = requests.get(url, stream=True)
     with open(filename, 'wb') as f:
         for chunk in r.iter_content(1024):
             f.write(chunk)
+    logger.info(f"Downloaded {filename}")
 
 def convert_to_wav(input_mp3, output_wav):
+    logger.info(f"Converting {input_mp3} to WAV format...")
     subprocess.run(["ffmpeg", "-y", "-i", input_mp3, output_wav], check=True)
+    logger.info(f"Converted {input_mp3} to {output_wav}")
 
 def split_audio_with_spleeter(input_wav, output_dir):
+    logger.info(f"Splitting audio with Spleeter: {input_wav} -> {output_dir}")
     separator = Separator('spleeter:2stems', multiprocess=False)
     separator.separate_to_file(input_wav, output_dir)
+    logger.info(f"Spleeter output saved to {output_dir}")
 
 def merge_audio(instr_path, vocal_path, output_path):
+    logger.info(f"Merging {instr_path} and {vocal_path} into {output_path}")
     subprocess.run([
         "ffmpeg", "-y",
         "-i", instr_path,
@@ -39,11 +46,14 @@ def merge_audio(instr_path, vocal_path, output_path):
         "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=3",
         output_path
     ], check=True)
+    logger.info(f"Merged audio saved to {output_path}")
 
 def upload_to_firebase(filepath):
+    logger.info(f"Uploading {filepath} to Firebase Storage...")
     blob = bucket.blob(f"remixes/{os.path.basename(filepath)}")
     blob.upload_from_filename(filepath)
     blob.make_public()
+    logger.info(f"File uploaded to {blob.public_url}")
     return blob.public_url
 
 def process_job(job):
@@ -64,18 +74,27 @@ def process_job(job):
     remix_path = os.path.join(OUTPUT_DIR, f"{job_id}_remix.mp3")
 
     try:
+        logger.info("Starting to process instrumental audio...")
         download_file(instr_url, instr_mp3)
+        logger.info("Starting to process vocal audio...")
         download_file(vocals_url, voc_mp3)
+
+        logger.info(f"Converting instrumental MP3 to WAV...")
         convert_to_wav(instr_mp3, instr_wav)
+        logger.info(f"Converting vocal MP3 to WAV...")
         convert_to_wav(voc_mp3, voc_wav)
 
+        logger.info(f"Splitting instrumental WAV with Spleeter...")
         split_audio_with_spleeter(instr_wav, instr_out_dir)
+        logger.info(f"Splitting vocal WAV with Spleeter...")
         split_audio_with_spleeter(voc_wav, voc_out_dir)
 
         instr_final = os.path.join(instr_out_dir, os.path.splitext(instr_wav)[0], "accompaniment.wav")
         voc_final = os.path.join(voc_out_dir, os.path.splitext(voc_wav)[0], "vocals.wav")
 
+        logger.info(f"Merging final instrumental and vocal WAVs...")
         merge_audio(instr_final, voc_final, remix_path)
+        logger.info(f"Uploading the remix to Firebase...")
         remix_url = upload_to_firebase(remix_path)
 
         db.collection("remix_jobs").document(job_id).update({
@@ -85,19 +104,22 @@ def process_job(job):
         logger.info(f"✅ Job {job_id} completed: {remix_url}")
 
     except Exception as e:
-        logger.exception(f"❌ Failed job {job_id}")
+        logger.exception(f"❌ Failed job {job_id} - {str(e)}")
         db.collection("remix_jobs").document(job_id).update({
             "status": "error",
             "error": str(e)
         })
     finally:
+        logger.info(f"Cleaning up temporary files for job {job_id}...")
         for f in [instr_mp3, voc_mp3, instr_wav, voc_wav, remix_path]:
             if os.path.exists(f): os.remove(f)
         for d in [instr_out_dir, voc_out_dir]:
             if os.path.exists(d): subprocess.run(["rm", "-rf", d])
 
 def watch_queue():
+    logger.info("🚀 Watching for pending jobs...")
     while True:
+        logger.info("Fetching pending jobs from Firestore...")
         pending_jobs = db.collection("remix_jobs").where("status", "==", "pending").stream()
         if not pending_jobs:
             logger.info("No pending jobs found.")
