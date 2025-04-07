@@ -39,6 +39,10 @@ def split_audio_with_spleeter(input_path, output_dir, stems="2stems"):
     if not os.path.exists(input_path):
         raise Exception(f"Input file not found: {input_path}")
 
+    logger.info(f"📦 File size: {os.path.getsize(input_path)} bytes")
+    logger.info(f"📂 Output dir: {output_dir}")
+    os.makedirs(output_dir, exist_ok=True)
+
     command = [
         "spleeter", "separate",
         "-p", f"spleeter:{stems}",
@@ -49,9 +53,10 @@ def split_audio_with_spleeter(input_path, output_dir, stems="2stems"):
 
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
+    logger.info("📤 Spleeter STDOUT:\n" + result.stdout)
+    logger.info("📥 Spleeter STDERR:\n" + (result.stderr or "No stderr output"))
+
     if result.returncode != 0:
-        logger.error("❌ Spleeter failed with stderr:")
-        logger.error(result.stderr)
         raise Exception("Spleeter separation failed")
 
     logger.info("✅ Spleeter separation complete")
