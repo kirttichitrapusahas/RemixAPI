@@ -35,4 +35,6 @@ def remix_request():
     return jsonify({"message": "Remix job submitted", "job_id": job_id}), 200
 
 if __name__ == '__main__':
-    app.run(port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    logger.info(f"🚀 Starting Remix API server on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
