@@ -57,4 +57,4 @@ def get_remix_status(job_id):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     logger.info(f"🚀 Starting Remix API server on port {port}")
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    app.run(host="0.0.0.0", port=port, debug=True, use_reloader=False)
