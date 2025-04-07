@@ -1,12 +1,13 @@
 import logging
+import sys
 from flask import Flask, request, jsonify
 import uuid
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# Setup logger
-logging.basicConfig(level=logging.INFO)
+# Setup logger to send logs to stdout
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -27,6 +28,7 @@ def remix_request():
     vocals_url = data.get("vocals_url")
 
     if not instrumental_url or not vocals_url:
+        logger.error("Missing URLs for remix job")
         return jsonify({"error": "Missing URLs"}), 400
 
     job_id = str(uuid.uuid4())[:8]
@@ -39,6 +41,7 @@ def remix_request():
     }
 
     db.collection("remix_jobs").document(job_id).set(job_data)
+    logger.info(f"Remix job submitted with job_id: {job_id}")
     return jsonify({"message": "Remix job submitted", "job_id": job_id}), 200
 
 # New route for checking job status by job_id
@@ -50,8 +53,10 @@ def get_remix_status(job_id):
 
     if job.exists:
         job_data = job.to_dict()
+        logger.info(f"Job status for {job_id}: {job_data['status']}")
         return jsonify(job_data), 200
     else:
+        logger.error(f"Job not found for job_id: {job_id}")
         return jsonify({"error": "Job not found"}), 404
 
 if __name__ == '__main__':
