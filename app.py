@@ -1,8 +1,13 @@
+import logging
 from flask import Flask, request, jsonify
 import uuid
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore
+
+# Setup logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
