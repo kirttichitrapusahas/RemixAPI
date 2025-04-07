@@ -3,6 +3,7 @@ import sys
 from flask import Flask, request, jsonify
 import uuid
 import os
+import subprocess  # For running remix_worker.py
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -40,8 +41,18 @@ def remix_request():
         "remix_url": ""
     }
 
+    # Save job data in Firestore
     db.collection("remix_jobs").document(job_id).set(job_data)
     logger.info(f"Remix job submitted with job_id: {job_id}")
+
+    # Trigger remix_worker.py after job is created
+    try:
+        # Call remix_worker.py to process the job asynchronously
+        subprocess.Popen(['python', 'remix_worker.py', job_id, instrumental_url, vocals_url])
+        logger.info(f"Remix worker triggered for job_id: {job_id}")
+    except Exception as e:
+        logger.error(f"Failed to trigger remix worker for job_id {job_id}: {str(e)}")
+
     return jsonify({"message": "Remix job submitted", "job_id": job_id}), 200
 
 # New route for checking job status by job_id
