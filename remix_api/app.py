@@ -4,12 +4,10 @@ import uuid
 import subprocess
 import requests
 import logging
-
-# Firebase Admin
 import firebase_admin
 from firebase_admin import credentials, storage
 
-# Setup logging
+# Setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -27,68 +25,43 @@ OUTPUT_DIR = os.path.join(CURRENT_DIR, "outputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def download_file(url, filename):
-    logger.info(f"📥 Downloading from: {url} -> {filename}")
+    logger.info(f"📥 Downloading from: {url}")
     r = requests.get(url, stream=True)
     with open(filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
+        for chunk in r.iter_content(1024):
             if chunk:
                 f.write(chunk)
     logger.info(f"✅ Download complete: {filename}")
 
-def split_audio_with_spleeter(input_path, output_dir, stems="2stems"):
-    if not os.path.exists(input_path):
-        raise Exception(f"Input file not found: {input_path}")
+def convert_to_wav(input_mp3, output_wav):
+    command = ["ffmpeg", "-y", "-i", input_mp3, output_wav]
+    logger.info(f"🔄 Converting to WAV: {input_mp3} → {output_wav}")
+    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    logger.info(f"📦 File size: {os.path.getsize(input_path)} bytes")
-    logger.info(f"📂 Output dir: {output_dir}")
+def split_audio_with_spleeter(input_wav, output_dir):
     os.makedirs(output_dir, exist_ok=True)
-
-    command = [
-        "spleeter", "separate",
-        "-p", f"spleeter:{stems}",
-        "-o", output_dir,
-        input_path
-    ]
+    command = ["spleeter", "separate", "-p", "spleeter:2stems", "-o", output_dir, input_wav]
     logger.info(f"🎼 Running Spleeter: {' '.join(command)}")
-
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    logger.info("📤 Spleeter STDOUT:\n" + result.stdout)
-    logger.info("📥 Spleeter STDERR:\n" + (result.stderr or "No stderr output"))
-
     if result.returncode != 0:
-        raise Exception("Spleeter separation failed")
-
-    logger.info("✅ Spleeter separation complete")
+        raise Exception(f"Spleeter failed: {result.stderr}")
 
 def merge_audio(instrumental_path, vocal_path, output_path):
-    if not os.path.exists(instrumental_path):
-        raise Exception(f"Instrumental file not found: {instrumental_path}")
-    if not os.path.exists(vocal_path):
-        raise Exception(f"Vocal file not found: {vocal_path}")
-
     command = [
-        "ffmpeg",
-        "-y",  # Overwrite if file exists
+        "ffmpeg", "-y",
         "-i", instrumental_path,
         "-i", vocal_path,
         "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=3",
         output_path
     ]
-    logger.info(f"🎛️ Running FFmpeg: {' '.join(command)}")
-
+    logger.info(f"🎛️ Merging with FFmpeg: {' '.join(command)}")
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
     if result.returncode != 0:
-        logger.error("❌ FFmpeg failed with stderr:")
-        logger.error(result.stderr)
-        raise Exception("FFmpeg merge failed")
-
-    logger.info("✅ FFmpeg merge complete")
+        raise Exception(f"FFmpeg merge failed: {result.stderr}")
 
 @app.route("/")
 def home():
-    return "🎶 Remix API is running on Render!"
+    return "🎶 Remix API is running!"
 
 @app.route('/remix', methods=['POST'])
 def remix():
@@ -97,57 +70,62 @@ def remix():
     vocals_url = data.get("vocals_url")
 
     if not instrumental_url or not vocals_url:
-        logger.error("❌ Missing URL(s) in request")
         return jsonify({"error": "Both URLs are required"}), 400
 
     session_id = str(uuid.uuid4())
-    instrumental_input = f"{session_id}_instr.mp3"
-    vocals_input = f"{session_id}_vocals.mp3"
-    instrumental_dir = os.path.join(OUTPUT_DIR, f"instr_{session_id}")
-    vocals_dir = os.path.join(OUTPUT_DIR, f"vocals_{session_id}")
-    remix_filename = f"{session_id}_remix.mp3"
-    remix_path = os.path.join(OUTPUT_DIR, remix_filename)
+    logger.info(f"🆔 Session ID: {session_id}")
+
+    instr_mp3 = f"{session_id}_instr.mp3"
+    voc_mp3 = f"{session_id}_vocals.mp3"
+    instr_wav = f"{session_id}_instr.wav"
+    voc_wav = f"{session_id}_vocals.wav"
+
+    instr_out_dir = os.path.join(OUTPUT_DIR, f"instr_{session_id}")
+    voc_out_dir = os.path.join(OUTPUT_DIR, f"vocals_{session_id}")
+    remix_path = os.path.join(OUTPUT_DIR, f"{session_id}_remix.mp3")
 
     try:
-        logger.info(f"🆔 Session ID: {session_id}")
+        # Download both files
+        download_file(instrumental_url, instr_mp3)
+        download_file(vocals_url, voc_mp3)
 
-        download_file(instrumental_url, instrumental_input)
-        download_file(vocals_url, vocals_input)
+        # Convert to WAV
+        convert_to_wav(instr_mp3, instr_wav)
+        convert_to_wav(voc_mp3, voc_wav)
 
-        split_audio_with_spleeter(instrumental_input, instrumental_dir)
-        split_audio_with_spleeter(vocals_input, vocals_dir)
+        # Spleeter
+        split_audio_with_spleeter(instr_wav, instr_out_dir)
+        split_audio_with_spleeter(voc_wav, voc_out_dir)
 
-        instr_folder = os.path.splitext(instrumental_input)[0]
-        vocal_folder = os.path.splitext(vocals_input)[0]
+        # Expected Spleeter output folders
+        instr_base = os.path.splitext(os.path.basename(instr_wav))[0]
+        voc_base = os.path.splitext(os.path.basename(voc_wav))[0]
 
-        instrumental_out = os.path.join(instrumental_dir, instr_folder, "accompaniment.wav")
-        vocals_out = os.path.join(vocals_dir, vocal_folder, "vocals.wav")
+        instrumental_out = os.path.join(instr_out_dir, instr_base, "accompaniment.wav")
+        vocals_out = os.path.join(voc_out_dir, voc_base, "vocals.wav")
 
-        logger.info(f"🔍 Checking outputs: {instrumental_out} & {vocals_out}")
         if not os.path.exists(instrumental_out) or not os.path.exists(vocals_out):
-            raise Exception("Spleeter output not found")
+            raise Exception("Spleeter output files missing")
 
+        # Merge both audio
         merge_audio(instrumental_out, vocals_out, remix_path)
 
-        blob = bucket.blob(f"remixes/{remix_filename}")
+        # Upload to Firebase
+        blob = bucket.blob(f"remixes/{os.path.basename(remix_path)}")
         blob.upload_from_filename(remix_path)
         blob.make_public()
 
-        logger.info(f"✅ Uploaded to Firebase: {blob.public_url}")
-
-        return jsonify({
-            "remix_url": blob.public_url
-        })
+        return jsonify({"remix_url": blob.public_url})
 
     except Exception as e:
-        logger.exception("🔥 Exception during remix process")
+        logger.exception("🔥 Remix generation failed")
         return jsonify({"error": str(e)}), 500
 
     finally:
-        for f in [instrumental_input, vocals_input, remix_path]:
+        for f in [instr_mp3, voc_mp3, instr_wav, voc_wav, remix_path]:
             if os.path.exists(f):
                 os.remove(f)
-        for d in [instrumental_dir, vocals_dir]:
+        for d in [instr_out_dir, voc_out_dir]:
             if os.path.exists(d):
                 subprocess.run(["rm", "-rf", d])
 
