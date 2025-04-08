@@ -4,6 +4,9 @@ from firebase_admin import credentials, firestore
 import uuid
 import logging
 
+# Import the remix processor function
+from remix_worker import process_job
+
 # Firebase initialization
 if not firebase_admin._apps:
     cred = credentials.Certificate("firebase_credentials.json")
@@ -38,8 +41,12 @@ def remix():
             "created_at": firestore.SERVER_TIMESTAMP
         })
 
-        logger.info(f"🎵 Remix job {job_id} created.")
-        return jsonify({"job_id": job_id, "status": "pending"}), 200
+        logger.info(f"🎵 Remix job {job_id} created. Starting processing...")
+
+        # Directly process the remix
+        process_job(job_id, instrumental_url, vocals_url)
+
+        return jsonify({"job_id": job_id, "status": "processing"}), 200
 
     except Exception as e:
         logger.exception("Failed to create remix job.")
