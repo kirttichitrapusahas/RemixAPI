@@ -52,7 +52,7 @@ def trim_audio(input_path, output_path, duration=60):
 
 def split_audio_with_spleeter(input_wav, output_dir):
     try:
-        logger.info(f"🎼 Splitting {input_wav} using subprocess spleeter...")
+        logger.info(f"🎼 Splitting {input_wav} using Spleeter library...")
 
         if not os.path.exists(input_wav):
             raise FileNotFoundError(f"{input_wav} does not exist")
@@ -69,21 +69,14 @@ def split_audio_with_spleeter(input_wav, output_dir):
         logger.info(f"📁 File size: {file_size} bytes")
         logger.info(f"📂 Output directory: {output_dir}")
 
-        subprocess.run(
-            ["spleeter", "separate", "-p", "spleeter:2stems", "-o", output_dir, input_wav],
-            check=True,
-            timeout=300
-        )
+        # 🔄 Use Spleeter's Python API instead of subprocess
+        separator = Separator('spleeter:2stems')
+        separator.separate_to_file(input_wav, output_dir)
 
         logger.info(f"✅ Spleeter finished. Output at: {output_dir}")
-    except subprocess.TimeoutExpired:
-        logger.error(f"⏳ Spleeter timed out for {input_wav}")
-        raise
-    except subprocess.CalledProcessError as e:
-        logger.exception(f"❌ Spleeter failed: {e}")
-        raise
+
     except Exception as e:
-        logger.exception(f"❌ Unknown error in spleeter: {e}")
+        logger.exception(f"❌ Error during Spleeter processing: {e}")
         raise
 
 def merge_audio(instr_path, vocal_path, output_path):
