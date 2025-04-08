@@ -51,10 +51,34 @@ def trim_audio(input_path, output_path, duration=60):
         raise
 
 def split_audio_with_spleeter(input_wav, output_dir):
-    logger.info(f"🎼 Splitting {input_wav} with Spleeter...")
-    separator = Separator('spleeter:2stems', multiprocess=False)
-    separator.separate_to_file(input_wav, output_dir)
-    logger.info(f"✅ Spleeter output in {output_dir}")
+    try:
+        logger.info(f"🎼 Splitting {input_wav} with Spleeter...")
+
+        # Check if file exists and has size
+        if not os.path.exists(input_wav):
+            raise FileNotFoundError(f"{input_wav} does not exist")
+        
+        file_size = os.path.getsize(input_wav)
+        if file_size < 100000:  # less than 100KB
+            raise ValueError(f"⚠️ File size too small: {file_size} bytes — possible invalid audio")
+
+        # Clean output dir if it already exists
+        if os.path.exists(output_dir):
+            logger.info(f"🧹 Removing old output dir {output_dir}")
+            subprocess.run(["rm", "-rf", output_dir])
+        os.makedirs(output_dir, exist_ok=True)
+
+        logger.info(f"📁 File size: {file_size} bytes")
+        logger.info(f"📂 Output directory: {output_dir}")
+
+        # Run spleeter
+        separator = Separator('spleeter:2stems', multiprocess=False)
+        separator.separate_to_file(input_wav, output_dir)
+        logger.info(f"✅ Spleeter finished processing {input_wav} → {output_dir}")
+
+    except Exception as e:
+        logger.exception(f"❌ Spleeter failed: {e}")
+        raise
 
 def merge_audio(instr_path, vocal_path, output_path):
     logger.info(f"🎚️ Mixing {instr_path} + {vocal_path} -> {output_path}")
