@@ -7,7 +7,7 @@ from spleeter.separator import Separator
 if not firebase_admin._apps:
     cred = credentials.Certificate("firebase_credentials.json")
     firebase_admin.initialize_app(cred, {
-        'storageBucket': 'ai-song-generator-d228c.appspot.com'
+        'storageBucket': 'ai-song-generator-d228c.firebasestorage.app'
     })
 
 db = firestore.client()
