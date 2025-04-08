@@ -34,11 +34,21 @@ def convert_to_wav(input_mp3, output_wav):
     logger.info(f"✅ Converted to {output_wav}")
 
 def trim_audio(input_path, output_path, duration=60):
-    logger.info(f"✂️ Trimming {input_path} to {duration} seconds...")
-    subprocess.run([
-        "ffmpeg", "-y", "-i", input_path, "-t", str(duration), "-c", "copy", output_path
-    ], check=True)
-    logger.info(f"✅ Trimmed to {output_path}")
+    logging.info(f"✂️ Trimming {input_path} to {duration} seconds...")
+    try:
+        subprocess.run([
+            "ffmpeg", "-y", "-i", input_path,
+            "-t", str(duration),
+            "-vn",                      # remove any video stream
+            "-acodec", "libmp3lame",    # force MP3 encoding
+            "-ar", "44100",             # sample rate
+            "-b:a", "192k",             # bitrate
+            output_path
+        ], check=True)
+        logging.info(f"✅ Trimmed and re-encoded to {output_path}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"❌ FFmpeg trimming failed: {e}")
+        raise
 
 def split_audio_with_spleeter(input_wav, output_dir):
     logger.info(f"🎼 Splitting {input_wav} with Spleeter...")
