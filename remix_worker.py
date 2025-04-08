@@ -117,6 +117,8 @@ def process_job(job):
 
     instr_url = data['instrumental_url']
     vocals_url = data['vocals_url']
+    logger.info(f"🎵 Instrumental URL: {instr_url}")
+    logger.info(f"🎤 Vocals URL: {vocals_url}")
 
     instr_mp3 = f"{job_id}_instr.mp3"
     voc_mp3 = f"{job_id}_vocals.mp3"
@@ -130,38 +132,71 @@ def process_job(job):
     remix_path = os.path.join(OUTPUT_DIR, f"{job_id}_remix.mp3")
 
     try:
+        logger.info("⬇️ Downloading instrumental MP3...")
         download_file(instr_url, instr_mp3)
+        logger.info("✅ Downloaded instrumental MP3")
+
+        logger.info("⬇️ Downloading vocal MP3...")
         download_file(vocals_url, voc_mp3)
+        logger.info("✅ Downloaded vocal MP3")
 
+        logger.info("✂️ Trimming instrumental...")
         trim_audio(instr_mp3, instr_trimmed)
+        logger.info(f"✅ Trimmed instrumental saved to {instr_trimmed}")
+
+        logger.info("✂️ Trimming vocals...")
         trim_audio(voc_mp3, voc_trimmed)
+        logger.info(f"✅ Trimmed vocals saved to {voc_trimmed}")
 
-        if os.path.exists(instr_mp3): os.remove(instr_mp3)
-        if os.path.exists(voc_mp3): os.remove(voc_mp3)
+        if os.path.exists(instr_mp3):
+            os.remove(instr_mp3)
+            logger.info("🗑️ Deleted original instrumental MP3")
+        if os.path.exists(voc_mp3):
+            os.remove(voc_mp3)
+            logger.info("🗑️ Deleted original vocal MP3")
 
-        # ✅ Upload trimmed files and save URLs
+        logger.info("🚀 Uploading trimmed instrumental to Firebase...")
         trimmed_instr_url = upload_to_firebase(instr_trimmed)
-        trimmed_vocal_url = upload_to_firebase(voc_trimmed)
+        logger.info(f"✅ Uploaded and public URL: {trimmed_instr_url}")
 
-        # ✅ Update Firestore with trimmed URLs
+        logger.info("🚀 Uploading trimmed vocals to Firebase...")
+        trimmed_vocal_url = upload_to_firebase(voc_trimmed)
+        logger.info(f"✅ Uploaded and public URL: {trimmed_vocal_url}")
+
+        logger.info("📝 Updating Firestore with trimmed URLs...")
         db.collection("remix_jobs").document(job_id).update({
             "trimmed_instr_url": trimmed_instr_url,
             "trimmed_vocal_url": trimmed_vocal_url
         })
 
+        logger.info("🎼 Converting trimmed instrumental to WAV...")
         convert_to_wav(instr_trimmed, instr_wav)
-        convert_to_wav(voc_trimmed, voc_wav)
+        logger.info(f"✅ Converted to WAV: {instr_wav}")
 
+        logger.info("🎼 Converting trimmed vocals to WAV...")
+        convert_to_wav(voc_trimmed, voc_wav)
+        logger.info(f"✅ Converted to WAV: {voc_wav}")
+
+        logger.info("🔬 Running Spleeter on instrumental...")
         split_audio_with_spleeter(instr_wav, instr_out_dir)
+        logger.info("✅ Spleeter finished for instrumental")
+
+        logger.info("🔬 Running Spleeter on vocals...")
         split_audio_with_spleeter(voc_wav, voc_out_dir)
+        logger.info("✅ Spleeter finished for vocals")
 
         instr_final = os.path.join(instr_out_dir, os.path.splitext(instr_wav)[0], "accompaniment.wav")
         voc_final = os.path.join(voc_out_dir, os.path.splitext(voc_wav)[0], "vocals.wav")
+        logger.info(f"🎛️ Merging: {instr_final} + {voc_final} -> {remix_path}")
 
         merge_audio(instr_final, voc_final, remix_path)
+        logger.info("✅ Merging complete")
 
+        logger.info("🚀 Uploading remix to Firebase...")
         remix_url = upload_to_firebase(remix_path)
+        logger.info(f"✅ Remix uploaded: {remix_url}")
 
+        logger.info("📝 Updating Firestore with remix URL and status...")
         db.collection("remix_jobs").document(job_id).update({
             "status": "done",
             "remix_url": remix_url
@@ -179,9 +214,13 @@ def process_job(job):
     finally:
         logger.info(f"🧹 Cleaning up files for job {job_id}")
         for f in [instr_trimmed, voc_trimmed, instr_wav, voc_wav, remix_path]:
-            if os.path.exists(f): os.remove(f)
+            if os.path.exists(f):
+                os.remove(f)
+                logger.info(f"🗑️ Deleted {f}")
         for d in [instr_out_dir, voc_out_dir]:
-            if os.path.exists(d): subprocess.run(["rm", "-rf", d])
+            if os.path.exists(d):
+                subprocess.run(["rm", "-rf", d])
+                logger.info(f"🗑️ Deleted directory {d}")
 
 def watch_queue():
     logger.info("👀 Watching for pending jobs...")
