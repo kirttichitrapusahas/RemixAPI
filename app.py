@@ -1,76 +1,106 @@
-import logging
 import sys
-from flask import Flask, request, jsonify
-import uuid
 import os
-import subprocess  # For running remix_worker.py
+import logging
+import uuid
+import requests
+import subprocess
 import firebase_admin
 from firebase_admin import credentials, firestore
+from upload_to_firebase import uploadAudioToFirebase  # Assuming this is your upload method
 
-# Setup logger to send logs to stdout
+# Setup logging
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+# Firebase initialization (only if not already initialized)
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase_credentials.json")
+    firebase_admin.initialize_app(cred)
 
-# Firebase initialization
-cred = credentials.Certificate("firebase_credentials.json")
-firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-@app.route('/')
-def home():
-    return "🎶 Remix API - Job Queue Mode"
+def download_audio(url, filename):
+    r = requests.get(url)
+    with open(filename, 'wb') as f:
+        f.write(r.content)
+    logger.info(f"Downloaded: {filename}")
 
-@app.route('/remix', methods=['POST'])
-def remix_request():
-    data = request.json
-    instrumental_url = data.get("instrumental_url")
-    vocals_url = data.get("vocals_url")
+def trim_audio(input_path, output_path, duration=60):
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i", input_path,
+        "-t", str(duration),
+        "-c", "copy",
+        output_path
+    ]
+    subprocess.run(command, check=True)
+    logger.info(f"Trimmed audio: {output_path}")
 
-    if not instrumental_url or not vocals_url:
-        logger.error("Missing URLs for remix job")
-        return jsonify({"error": "Missing URLs"}), 400
+def remix_audio(instrumental_file, vocals_file, output_file):
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i", instrumental_file,
+        "-i", vocals_file,
+        "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=shortest",
+        output_file
+    ]
+    subprocess.run(command, check=True)
+    logger.info(f"Remixed audio saved: {output_file}")
 
-    job_id = str(uuid.uuid4())[:8]
-    job_data = {
-        "job_id": job_id,
-        "instrumental_url": instrumental_url,
-        "vocals_url": vocals_url,
-        "status": "pending",
-        "remix_url": ""
-    }
+def process_job(job_id, instrumental_url, vocals_url):
+    logger.info(f"🔧 Processing job {job_id}...")
 
-    # Save job data in Firestore
-    db.collection("remix_jobs").document(job_id).set(job_data)
-    logger.info(f"Remix job submitted with job_id: {job_id}")
+    instrumental_raw = f"{job_id}_instrumental.mp3"
+    vocals_raw = f"{job_id}_vocals.mp3"
+    instrumental_trimmed = f"{job_id}_instrumental_trimmed.mp3"
+    vocals_trimmed = f"{job_id}_vocals_trimmed.mp3"
+    output_file = f"{job_id}_remix.mp3"
 
-    # Trigger remix_worker.py after job is created
     try:
-        # Call remix_worker.py to process the job asynchronously
-        subprocess.Popen(['python', 'remix_worker.py', job_id, instrumental_url, vocals_url])
-        logger.info(f"Remix worker triggered for job_id: {job_id}")
+        download_audio(instrumental_url, instrumental_raw)
+        download_audio(vocals_url, vocals_raw)
+
+        trim_audio(instrumental_raw, instrumental_trimmed)
+        trim_audio(vocals_raw, vocals_trimmed)
+
+        # Cleanup raw files
+        os.remove(instrumental_raw)
+        os.remove(vocals_raw)
+
+        remix_audio(instrumental_trimmed, vocals_trimmed, output_file)
+
+        # Upload to Firebase
+        remix_url = uploadAudioToFirebase(output_file)
+
+        # Update Firestore
+        db.collection("remix_jobs").document(job_id).update({
+            "status": "completed",
+            "remix_url": remix_url
+        })
+        logger.info(f"✅ Remix job {job_id} completed! URL: {remix_url}")
+
     except Exception as e:
-        logger.error(f"Failed to trigger remix worker for job_id {job_id}: {str(e)}")
+        logger.error(f"❌ Remix job {job_id} failed: {str(e)}")
+        db.collection("remix_jobs").document(job_id).update({
+            "status": "failed",
+            "remix_url": ""
+        })
 
-    return jsonify({"message": "Remix job submitted", "job_id": job_id}), 200
+    finally:
+        # Clean up all files
+        for f in [instrumental_trimmed, vocals_trimmed, output_file]:
+            if os.path.exists(f):
+                os.remove(f)
 
-# New route for checking job status by job_id
-@app.route('/remix/<job_id>', methods=['GET'])
-def get_remix_status(job_id):
-    # Fetch the job from Firestore using the job_id
-    job_ref = db.collection("remix_jobs").document(job_id)
-    job = job_ref.get()
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: python remix_worker.py <job_id> <instrumental_url> <vocals_url>")
+        sys.exit(1)
 
-    if job.exists:
-        job_data = job.to_dict()
-        logger.info(f"Job status for {job_id}: {job_data['status']}")
-        return jsonify(job_data), 200
-    else:
-        logger.error(f"Job not found for job_id: {job_id}")
-        return jsonify({"error": "Job not found"}), 404
+    job_id = sys.argv[1]
+    instrumental_url = sys.argv[2]
+    vocals_url = sys.argv[3]
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    logger.info(f"🚀 Starting Remix API server on port {port}")
-    app.run(host="0.0.0.0", port=port, debug=True, use_reloader=False)
+    process_job(job_id, instrumental_url, vocals_url)
