@@ -72,7 +72,7 @@ def split_audio_with_spleeter(input_wav, output_dir):
         subprocess.run(
             ["spleeter", "separate", "-p", "spleeter:2stems", "-o", output_dir, input_wav],
             check=True,
-            timeout=200
+            timeout=300
         )
 
         logger.info(f"✅ Spleeter finished. Output at: {output_dir}")
