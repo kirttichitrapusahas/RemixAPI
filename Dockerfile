@@ -25,5 +25,8 @@ COPY . .
 # Expose the port Render will bind to
 EXPOSE 10000
 
+# Set the port env var explicitly
+ENV PORT=10000
+
 # Run your app
 CMD ["python", "app.py"]
