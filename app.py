@@ -4,6 +4,7 @@ from firebase_admin import credentials, firestore
 import uuid
 import logging
 import threading
+import os
 
 from remix_worker import process_job
 
