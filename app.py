@@ -43,8 +43,10 @@ def remix():
 
         logger.info(f"🎵 Remix job {job_id} created. Starting processing...")
 
-        # Directly process the remix
-        process_job(job_id, instrumental_url, vocals_url)
+        # ✅ Fetch the job document and call process_job correctly
+        job_ref = db.collection("remix_jobs").document(job_id)
+        job = job_ref.get()
+        process_job(job)
 
         return jsonify({"job_id": job_id, "status": "processing"}), 200
 
