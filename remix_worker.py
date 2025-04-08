@@ -134,6 +134,16 @@ def process_job(job):
         if os.path.exists(instr_mp3): os.remove(instr_mp3)
         if os.path.exists(voc_mp3): os.remove(voc_mp3)
 
+        # ✅ Upload trimmed files and save URLs
+        trimmed_instr_url = upload_to_firebase(instr_trimmed)
+        trimmed_vocal_url = upload_to_firebase(voc_trimmed)
+
+        # ✅ Update Firestore with trimmed URLs
+        db.collection("remix_jobs").document(job_id).update({
+            "trimmed_instr_url": trimmed_instr_url,
+            "trimmed_vocal_url": trimmed_vocal_url
+        })
+
         convert_to_wav(instr_trimmed, instr_wav)
         convert_to_wav(voc_trimmed, voc_wav)
 
