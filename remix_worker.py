@@ -7,7 +7,7 @@ from spleeter.separator import Separator
 if not firebase_admin._apps:
     cred = credentials.Certificate("firebase_credentials.json")
     firebase_admin.initialize_app(cred, {
-        'storageBucket': 'ai-song-generator-d228c.appspot.com'  # Make sure this is correct
+        'storageBucket': 'ai-song-generator-d228c.appspot.com'
     })
 
 db = firestore.client()
@@ -39,10 +39,10 @@ def trim_audio(input_path, output_path, duration=60):
         subprocess.run([
             "ffmpeg", "-y", "-i", input_path,
             "-t", str(duration),
-            "-vn",                      # remove any video stream
-            "-acodec", "libmp3lame",    # force MP3 encoding
-            "-ar", "44100",             # sample rate
-            "-b:a", "192k",             # bitrate
+            "-vn",
+            "-acodec", "libmp3lame",
+            "-ar", "44100",
+            "-b:a", "192k",
             output_path
         ], check=True)
         logging.info(f"✅ Trimmed and re-encoded to {output_path}")
@@ -52,17 +52,15 @@ def trim_audio(input_path, output_path, duration=60):
 
 def split_audio_with_spleeter(input_wav, output_dir):
     try:
-        logger.info(f"🎼 Splitting {input_wav} with Spleeter...")
+        logger.info(f"🎼 Splitting {input_wav} using subprocess spleeter...")
 
-        # Check if file exists and has size
         if not os.path.exists(input_wav):
             raise FileNotFoundError(f"{input_wav} does not exist")
-        
+
         file_size = os.path.getsize(input_wav)
-        if file_size < 100000:  # less than 100KB
+        if file_size < 100000:
             raise ValueError(f"⚠️ File size too small: {file_size} bytes — possible invalid audio")
 
-        # Clean output dir if it already exists
         if os.path.exists(output_dir):
             logger.info(f"🧹 Removing old output dir {output_dir}")
             subprocess.run(["rm", "-rf", output_dir])
@@ -71,13 +69,21 @@ def split_audio_with_spleeter(input_wav, output_dir):
         logger.info(f"📁 File size: {file_size} bytes")
         logger.info(f"📂 Output directory: {output_dir}")
 
-        # Run spleeter
-        separator = Separator('spleeter:2stems', multiprocess=False)
-        separator.separate_to_file(input_wav, output_dir)
-        logger.info(f"✅ Spleeter finished processing {input_wav} → {output_dir}")
+        subprocess.run(
+            ["spleeter", "separate", "-p", "spleeter:2stems", "-o", output_dir, input_wav],
+            check=True,
+            timeout=60
+        )
 
-    except Exception as e:
+        logger.info(f"✅ Spleeter finished. Output at: {output_dir}")
+    except subprocess.TimeoutExpired:
+        logger.error(f"⏳ Spleeter timed out for {input_wav}")
+        raise
+    except subprocess.CalledProcessError as e:
         logger.exception(f"❌ Spleeter failed: {e}")
+        raise
+    except Exception as e:
+        logger.exception(f"❌ Unknown error in spleeter: {e}")
         raise
 
 def merge_audio(instr_path, vocal_path, output_path):
@@ -119,34 +125,26 @@ def process_job(job):
     remix_path = os.path.join(OUTPUT_DIR, f"{job_id}_remix.mp3")
 
     try:
-        # Download original files
         download_file(instr_url, instr_mp3)
         download_file(vocals_url, voc_mp3)
 
-        # Trim both files
         trim_audio(instr_mp3, instr_trimmed)
         trim_audio(voc_mp3, voc_trimmed)
 
-        # Delete untrimmed versions
         if os.path.exists(instr_mp3): os.remove(instr_mp3)
         if os.path.exists(voc_mp3): os.remove(voc_mp3)
 
-        # Convert to WAV for spleeter
         convert_to_wav(instr_trimmed, instr_wav)
         convert_to_wav(voc_trimmed, voc_wav)
 
-        # Spleeter split
         split_audio_with_spleeter(instr_wav, instr_out_dir)
         split_audio_with_spleeter(voc_wav, voc_out_dir)
 
-        # Extract output stems
         instr_final = os.path.join(instr_out_dir, os.path.splitext(instr_wav)[0], "accompaniment.wav")
         voc_final = os.path.join(voc_out_dir, os.path.splitext(voc_wav)[0], "vocals.wav")
 
-        # Merge into remix
         merge_audio(instr_final, voc_final, remix_path)
 
-        # Upload
         remix_url = upload_to_firebase(remix_path)
 
         db.collection("remix_jobs").document(job_id).update({
