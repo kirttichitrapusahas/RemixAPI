@@ -98,12 +98,17 @@ def merge_audio(instr_path, vocal_path, output_path):
     logger.info(f"✅ Merged to {output_path}")
 
 def upload_to_firebase(filepath):
-    logger.info(f"🚀 Uploading {filepath} to Firebase...")
-    blob = bucket.blob(f"remixes/{os.path.basename(filepath)}")
+    bucket = storage.bucket()
+    filename = os.path.basename(filepath)
+    blob = bucket.blob(f"remixes/{filename}")
     blob.upload_from_filename(filepath)
+
+    # ✅ Make the uploaded file public
     blob.make_public()
-    logger.info(f"✅ Uploaded to Firebase: {blob.public_url}")
-    return blob.public_url
+
+    public_url = blob.public_url
+    logging.info(f"✅ Uploaded and made public: {public_url}")
+    return public_url
 
 def process_job(job):
     job_id = job.id
