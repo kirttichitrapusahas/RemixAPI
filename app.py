@@ -5,6 +5,7 @@ import uuid
 import logging
 import threading
 import os
+import base64
 
 from remix_worker import process_job
 
