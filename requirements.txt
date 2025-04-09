@@ -4,9 +4,9 @@ click==7.1.2
 requests==2.31.0
 firebase-admin==6.4.0
 ffmpeg-python==0.2.0
-tensorflow-cpu==2.12.1          # ✅ Only if you’re doing ML work elsewhere
+tensorflow-cpu==2.12.1
 numpy==1.24.3
 librosa==0.8.0
 demucs==4.0.0
-torchaudio==2.0.1               # ✅ Pin version (must match torch)
-torch==2.0.1                    # ✅ Pin version compatible with Demucs
+torchaudio==2.0.1
+torch==2.0.0
