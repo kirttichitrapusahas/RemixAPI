@@ -136,24 +136,27 @@ def process_job(job):
         split_audio_with_demucs(instr_wav, instr_out_dir)
         split_audio_with_demucs(voc_wav, voc_out_dir)
 
-        # 🔍 Detect the actual Demucs model output subfolder (e.g., htdemucs, demucs)
         instr_model_dir = os.listdir(instr_out_dir)[0]
         voc_model_dir = os.listdir(voc_out_dir)[0]
 
         instr_name = os.path.splitext(os.path.basename(instr_wav))[0]
         voc_name = os.path.splitext(os.path.basename(voc_wav))[0]
 
-        # Handle both possible instrumental outputs
+        # 🎯 Flexible check for possible instrumental files
         instr_candidates = [
             os.path.join(instr_out_dir, instr_model_dir, instr_name, "no_other.wav"),
-            os.path.join(instr_out_dir, instr_model_dir, instr_name, "other.wav")
+            os.path.join(instr_out_dir, instr_model_dir, instr_name, "other.wav"),
+            os.path.join(instr_out_dir, instr_model_dir, instr_name, "accompaniment.wav"),
         ]
-        
+
         instr_final = next((path for path in instr_candidates if os.path.exists(path)), None)
+
         if not instr_final:
+            base_dir = os.path.join(instr_out_dir, instr_model_dir, instr_name)
+            if os.path.exists(base_dir):
+                logger.warning(f"⚠️ Instrumental not found. Contents of {base_dir}: {os.listdir(base_dir)}")
             raise FileNotFoundError(f"Instrumental not found in any expected path: {instr_candidates}")
-        
-        # Check for vocals output
+
         voc_final = os.path.join(voc_out_dir, voc_model_dir, voc_name, "vocals.wav")
         if not os.path.exists(voc_final):
             raise FileNotFoundError(f"Vocals not found at {voc_final}")
