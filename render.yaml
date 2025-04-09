@@ -1,4 +1,0 @@
-services:
-  - type: web
-    name: remix-api
-    env: docker
