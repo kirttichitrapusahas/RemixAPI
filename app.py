@@ -8,10 +8,15 @@ import os
 
 from remix_worker import process_job
 
-# Firebase setup
 if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase_credentials.json")
-    firebase_admin.initialize_app(cred)
+    firebase_b64 = os.getenv("FIREBASE_CREDENTIALS_B64")
+    if firebase_b64:
+        # Decode Base64 shared variable and load JSON
+        cred_dict = json.loads(base64.b64decode(firebase_b64))
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+    else:
+        raise ValueError("Missing FIREBASE_CREDENTIALS_B64 environment variable")
 
 db = firestore.client()
 
