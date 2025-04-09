@@ -144,6 +144,7 @@ def process_job(job):
 
         # 🎯 Flexible check for possible instrumental files
         instr_candidates = [
+            os.path.join(instr_out_dir, instr_model_dir, instr_name, "no_vocals.wav"),
             os.path.join(instr_out_dir, instr_model_dir, instr_name, "no_other.wav"),
             os.path.join(instr_out_dir, instr_model_dir, instr_name, "other.wav"),
             os.path.join(instr_out_dir, instr_model_dir, instr_name, "accompaniment.wav"),
