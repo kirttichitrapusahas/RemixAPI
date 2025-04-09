@@ -136,17 +136,20 @@ def process_job(job):
         split_audio_with_demucs(instr_wav, instr_out_dir)
         split_audio_with_demucs(voc_wav, voc_out_dir)
 
-        # Demucs output path format: <output_dir>/demucs/<filename_without_ext>/
+        # 🔍 Detect the actual Demucs model output subfolder (e.g., htdemucs, demucs)
+        instr_model_dir = os.listdir(instr_out_dir)[0]
+        voc_model_dir = os.listdir(voc_out_dir)[0]
+
         instr_name = os.path.splitext(os.path.basename(instr_wav))[0]
         voc_name = os.path.splitext(os.path.basename(voc_wav))[0]
 
-        instr_final = os.path.join(instr_out_dir, "htdemucs", instr_name, "no_other.wav")
-        voc_final = os.path.join(voc_out_dir, "htdemucs", voc_name, "vocals.wav")
+        instr_final = os.path.join(instr_out_dir, instr_model_dir, instr_name, "no_other.wav")
+        voc_final = os.path.join(voc_out_dir, voc_model_dir, voc_name, "vocals.wav")
 
         if not os.path.exists(instr_final):
-            instr_final = os.path.join(instr_out_dir, "demucs", instr_name, "no_other.wav")
+            raise FileNotFoundError(f"Instrumental not found at {instr_final}")
         if not os.path.exists(voc_final):
-            voc_final = os.path.join(voc_out_dir, "demucs", voc_name, "vocals.wav")
+            raise FileNotFoundError(f"Vocals not found at {voc_final}")
 
         merge_audio(instr_final, voc_final, remix_path)
 
@@ -172,7 +175,7 @@ def process_job(job):
             if os.path.exists(f):
                 os.remove(f)
                 logger.info(f"🗑️ Deleted {f}")
-        for d in [os.path.join(instr_out_dir), os.path.join(voc_out_dir)]:
+        for d in [instr_out_dir, voc_out_dir]:
             if os.path.exists(d):
                 subprocess.run(["rm", "-rf", d])
                 logger.info(f"🗑️ Deleted directory {d}")
