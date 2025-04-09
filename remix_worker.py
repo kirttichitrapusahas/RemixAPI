@@ -1,5 +1,6 @@
 import os, time, uuid, subprocess, requests, logging
 import json
+import base64
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
