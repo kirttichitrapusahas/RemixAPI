@@ -55,17 +55,17 @@ def trim_audio(input_path, output_path, duration=60):
 
 def split_audio_with_demucs(input_wav, output_dir):
     try:
-        logger.info(f"🔍 Splitting {input_wav} using Demucs (mdx_extra_q)...")
+        logger.info(f"🔍 Splitting {input_wav} using Demucs (two-stems: vocals, model: htdemucs)...")
 
         if os.path.exists(output_dir):
             subprocess.run(["rm", "-rf", output_dir])
         os.makedirs(output_dir, exist_ok=True)
 
         subprocess.run([
-            "demucs", "-n", "mdx_extra_q", "-o", output_dir, input_wav
+            "demucs", "--two-stems", "vocals", "-n", "htdemucs", "-o", output_dir, input_wav
         ], check=True)
 
-        logger.info("✅ Demucs separation completed.")
+        logger.info("✅ Demucs separation (two-stems, htdemucs) completed.")
     except subprocess.CalledProcessError as e:
         logger.error(f"❌ Demucs processing failed: {e}")
         raise
@@ -143,13 +143,17 @@ def process_job(job):
         instr_name = os.path.splitext(os.path.basename(instr_wav))[0]
         voc_name = os.path.splitext(os.path.basename(voc_wav))[0]
 
-        # Handle both possible file outputs
-        instr_final = os.path.join(instr_out_dir, instr_model_dir, instr_name, "no_other.wav")
-        if not os.path.exists(instr_final):
-            instr_final = os.path.join(instr_out_dir, instr_model_dir, instr_name, "other.wav")
-            if not os.path.exists(instr_final):
-                raise FileNotFoundError(f"Instrumental not found at {instr_final}")
+        # Handle both possible instrumental outputs
+        instr_candidates = [
+            os.path.join(instr_out_dir, instr_model_dir, instr_name, "no_other.wav"),
+            os.path.join(instr_out_dir, instr_model_dir, instr_name, "other.wav")
+        ]
         
+        instr_final = next((path for path in instr_candidates if os.path.exists(path)), None)
+        if not instr_final:
+            raise FileNotFoundError(f"Instrumental not found in any expected path: {instr_candidates}")
+        
+        # Check for vocals output
         voc_final = os.path.join(voc_out_dir, voc_model_dir, voc_name, "vocals.wav")
         if not os.path.exists(voc_final):
             raise FileNotFoundError(f"Vocals not found at {voc_final}")
