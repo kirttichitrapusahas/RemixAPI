@@ -140,18 +140,18 @@ def process_job(job):
         instr_out_dir = os.path.join(OUTPUT_DIR, f"instr_{job_id}")
         voc_out_dir = os.path.join(OUTPUT_DIR, f"vocals_{job_id}")
 
-       print("🎧 Splitting instrumental and vocal files with Spleeter...")
-       print(f"📂 Instrumental WAV: {instr_wav}")
-       print(f"📂 Vocal WAV: {voc_wav}")
+        print("🎧 Splitting instrumental and vocal files with Spleeter...")
+        print(f"📂 Instrumental WAV: {instr_wav}")
+        print(f"📂 Vocal WAV: {voc_wav}")
     
-       split_audio_with_spleeter(instr_wav, instr_out_dir)
-       split_audio_with_spleeter(voc_wav, voc_out_dir)
+        split_audio_with_spleeter(instr_wav, instr_out_dir)
+        split_audio_with_spleeter(voc_wav, voc_out_dir)
     
-       instr_name = os.path.splitext(os.path.basename(instr_wav))[0]
-       voc_name = os.path.splitext(os.path.basename(voc_wav))[0]
+        instr_name = os.path.splitext(os.path.basename(instr_wav))[0]
+        voc_name = os.path.splitext(os.path.basename(voc_wav))[0]
     
-       instr_final = os.path.join(instr_out_dir, instr_name, "accompaniment.wav")
-       voc_final = os.path.join(voc_out_dir, voc_name, "vocals.wav")
+        instr_final = os.path.join(instr_out_dir, instr_name, "accompaniment.wav")
+        voc_final = os.path.join(voc_out_dir, voc_name, "vocals.wav")
     
         print(f"🔍 Checking paths...")
         print(f"🎼 Expected Instrumental Output: {instr_final}")
