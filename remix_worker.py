@@ -137,8 +137,12 @@ def process_job(job):
         convert_to_wav(instr_trimmed, instr_wav)
         convert_to_wav(voc_trimmed, voc_wav)
 
+        print("Output dir: {OUTPUT_DIR}");
         instr_out_dir = os.path.join(OUTPUT_DIR, f"instr_{job_id}")
         voc_out_dir = os.path.join(OUTPUT_DIR, f"vocals_{job_id}")
+
+        print("instr_out_dir dir: {instr_out_dir}");
+        print("voc_out_dir dir: {voc_out_dir}");
 
         print("🎧 Splitting instrumental and vocal files with Spleeter...")
         print(f"📂 Instrumental WAV: {instr_wav}")
@@ -149,6 +153,9 @@ def process_job(job):
     
         instr_name = os.path.splitext(os.path.basename(instr_wav))[0]
         voc_name = os.path.splitext(os.path.basename(voc_wav))[0]
+
+        print("instr_name dir: {instr_name}");
+        print("voc_name dir: {voc_name}");
     
         instr_final = os.path.join(instr_out_dir, instr_name, "accompaniment.wav")
         voc_final = os.path.join(voc_out_dir, voc_name, "vocals.wav")
