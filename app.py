@@ -6,13 +6,14 @@ import logging
 import threading
 import os
 import base64
+import json
 
 from remix_worker import process_job
 
+# ✅ Firebase setup
 if not firebase_admin._apps:
     firebase_b64 = os.getenv("FIREBASE_CREDENTIALS_B64")
     if firebase_b64:
-        # Decode Base64 shared variable and load JSON
         cred_dict = json.loads(base64.b64decode(firebase_b64))
         cred = credentials.Certificate(cred_dict)
         firebase_admin.initialize_app(cred)
@@ -21,11 +22,11 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# Logging
+# ✅ Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Flask setup
+# ✅ Flask setup
 app = Flask(__name__)
 
 @app.route("/")
@@ -51,7 +52,6 @@ def remix():
 
         logger.info(f"🎵 Remix job {job_id} created. Spawning worker thread...")
 
-        # ✅ Background thread to avoid timeout
         def background_remix():
             try:
                 logger.info(f"🚀 Thread started for job {job_id}")
@@ -69,6 +69,7 @@ def remix():
         logger.exception("Failed to create remix job.")
         return jsonify({"error": str(e)}), 500
 
+# ✅ Optional legacy endpoint (if needed)
 @app.route("/ngrok-url")
 def get_ngrok_url():
     try:
@@ -78,7 +79,24 @@ def get_ngrok_url():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ✅ Save URL to Firestore
+def update_remix_api_url_in_firestore(public_url):
+    try:
+        config_ref = db.collection("config").document("remix_api")
+        config_ref.set({"url": public_url}, merge=True)
+        logger.info(f"🔥 Public Remix API URL saved to Firestore: {public_url}")
+    except Exception as e:
+        logger.exception("❌ Failed to save Remix API URL to Firestore.")
+
+# ✅ Startup logic
 if __name__ == "__main__":
     print("🚀 Remix API Server is starting...")
-    port = int(os.environ.get("PORT", 10000))  # Fallback for local, dynamic for Render
+
+    public_url = os.getenv("PUBLIC_URL")  # ← make sure this is passed in env vars
+    if not public_url:
+        raise ValueError("PUBLIC_URL environment variable is required on RunPod")
+
+    update_remix_api_url_in_firestore(public_url)
+
+    port = int(os.environ.get("PORT", 10000))
     app.run(debug=True, host="0.0.0.0", port=port)
