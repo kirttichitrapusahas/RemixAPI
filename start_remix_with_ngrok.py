@@ -11,7 +11,7 @@ public_url = ngrok.connect(PORT)
 print(f"🌍 Public URL for Remix API: {public_url}")
 
 # Optional: Set this URL as an env variable if needed
-os.environ["PUBLIC_URL"] = public_url
+os.environ["PUBLIC_URL"] = public_url.public_url
 
 # Start the Flask server
 print("🚀 Starting Flask Remix API server...")
