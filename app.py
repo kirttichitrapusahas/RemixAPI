@@ -82,7 +82,7 @@ def get_ngrok_url():
 # ✅ Save URL to Firestore
 def update_remix_api_url_in_firestore(public_url):
     try:
-        config_ref = db.collection("config").document("remix_api")
+        config_ref = db.collection("remix_config").document("server")
         config_ref.set({"url": public_url}, merge=True)
         logger.info(f"🔥 Public Remix API URL saved to Firestore: {public_url}")
     except Exception as e:
