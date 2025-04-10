@@ -10,7 +10,15 @@ import json
 
 from remix_worker import process_job
 
-# ✅ Firebase setup
+# Load base64 from file if not set in env
+if "FIREBASE_CREDENTIALS_B64" not in os.environ:
+    try:
+        with open("firebase_credentials.b64.txt", "r") as f:
+            os.environ["FIREBASE_CREDENTIALS_B64"] = f.read().strip()
+    except FileNotFoundError:
+        raise ValueError("Missing FIREBASE_CREDENTIALS_B64 environment variable and firebase_credentials.b64.txt file")
+
+# Initialize Firebase
 if not firebase_admin._apps:
     firebase_b64 = os.getenv("FIREBASE_CREDENTIALS_B64")
     if firebase_b64:
