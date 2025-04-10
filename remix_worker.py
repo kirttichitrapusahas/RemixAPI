@@ -27,7 +27,7 @@ bucket = storage.bucket()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-REMIX_DIR = "RemixAPI"
+REMIX_DIR = "."
 os.makedirs(REMIX_DIR, exist_ok=True)
 
 def download_file(url, filename):
@@ -103,16 +103,13 @@ def process_job(job):
     instr_url = data['instrumental_url']
     vocals_url = data['vocals_url']
 
-    job_folder = os.path.join(REMIX_DIR, job_id)
-    os.makedirs(job_folder, exist_ok=True)
-
-    instr_mp3 = os.path.join(job_folder, "instr.mp3")
-    voc_mp3 = os.path.join(job_folder, "vocals.mp3")
-    instr_trimmed = os.path.join(job_folder, "instr_trimmed.mp3")
-    voc_trimmed = os.path.join(job_folder, "vocals_trimmed.mp3")
-    instr_wav = os.path.join(job_folder, "instr.wav")
-    voc_wav = os.path.join(job_folder, "vocals.wav")
-    remix_path = os.path.join(job_folder, "remix.mp3")
+    instr_mp3 = f"{job_id}_instr.mp3"
+    voc_mp3 = f"{job_id}_vocals.mp3"
+    instr_trimmed = f"{job_id}_instr_trimmed.mp3"
+    voc_trimmed = f"{job_id}_vocals_trimmed.mp3"
+    instr_wav = f"{job_id}_instr.wav"
+    voc_wav = f"{job_id}_vocals.wav"
+    remix_path = f"{job_id}_remix.mp3"
 
     try:
         download_file(instr_url, instr_mp3)
@@ -135,15 +132,16 @@ def process_job(job):
         convert_to_wav(instr_trimmed, instr_wav)
         convert_to_wav(voc_trimmed, voc_wav)
 
-        instr_out_dir = os.path.join(job_folder, "instr")
-        voc_out_dir = os.path.join(job_folder, "vocals")
-
         logger.info("🎧 Splitting files with Spleeter...")
-        split_audio_with_spleeter(instr_wav, instr_out_dir)
-        split_audio_with_spleeter(voc_wav, voc_out_dir)
 
-        instr_final = os.path.join(instr_out_dir, os.path.splitext(os.path.basename(instr_wav))[0], "accompaniment.wav")
-        voc_final = os.path.join(voc_out_dir, os.path.splitext(os.path.basename(voc_wav))[0], "vocals.wav")
+        split_audio_with_spleeter(instr_wav, ".")
+        split_audio_with_spleeter(voc_wav, ".")
+
+        instr_name = os.path.splitext(instr_wav)[0]
+        voc_name = os.path.splitext(voc_wav)[0]
+
+        instr_final = os.path.join(instr_name, "accompaniment.wav")
+        voc_final = os.path.join(voc_name, "vocals.wav")
 
         logger.info(f"🔍 Instrumental path: {instr_final}")
         logger.info(f"🔍 Vocal path:       {voc_final}")
