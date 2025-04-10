@@ -15,22 +15,20 @@ if not firebase_admin._apps:
         except FileNotFoundError:
             raise ValueError("Missing FIREBASE_CREDENTIALS_B64 environment variable or firebase_credentials.b64.txt file")
 
-    # Decode Base64 and parse JSON
     cred_dict = json.loads(base64.b64decode(firebase_b64))
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred, {
-        'storageBucket': 'ai-song-generator-d228c.firebasestorage.app'  # ✅ Correct domain
+        'storageBucket': 'ai-song-generator-d228c.firebasestorage.app'
     })
 
 db = firestore.client()
 bucket = storage.bucket()
 
-# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-OUTPUT_DIR = "outputs"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+REMIX_DIR = "RemixAPI"
+os.makedirs(REMIX_DIR, exist_ok=True)
 
 def download_file(url, filename):
     logger.info(f"⬇️ Downloading from {url} to {filename}")
@@ -105,14 +103,16 @@ def process_job(job):
     instr_url = data['instrumental_url']
     vocals_url = data['vocals_url']
 
-    instr_mp3 = f"{job_id}_instr.mp3"
-    voc_mp3 = f"{job_id}_vocals.mp3"
-    instr_trimmed = f"{job_id}_instr_trimmed.mp3"
-    voc_trimmed = f"{job_id}_vocals_trimmed.mp3"
-    instr_wav = f"{job_id}_instr.wav"
-    voc_wav = f"{job_id}_vocals.wav"
+    job_folder = os.path.join(REMIX_DIR, job_id)
+    os.makedirs(job_folder, exist_ok=True)
 
-    remix_path = os.path.join(OUTPUT_DIR, f"{job_id}_remix.mp3")
+    instr_mp3 = os.path.join(job_folder, "instr.mp3")
+    voc_mp3 = os.path.join(job_folder, "vocals.mp3")
+    instr_trimmed = os.path.join(job_folder, "instr_trimmed.mp3")
+    voc_trimmed = os.path.join(job_folder, "vocals_trimmed.mp3")
+    instr_wav = os.path.join(job_folder, "instr.wav")
+    voc_wav = os.path.join(job_folder, "vocals.wav")
+    remix_path = os.path.join(job_folder, "remix.mp3")
 
     try:
         download_file(instr_url, instr_mp3)
@@ -135,21 +135,15 @@ def process_job(job):
         convert_to_wav(instr_trimmed, instr_wav)
         convert_to_wav(voc_trimmed, voc_wav)
 
-        instr_out_dir = os.path.join(OUTPUT_DIR, f"instr_{job_id}")
-        voc_out_dir = os.path.join(OUTPUT_DIR, f"vocals_{job_id}")
+        instr_out_dir = os.path.join(job_folder, "instr")
+        voc_out_dir = os.path.join(job_folder, "vocals")
 
         logger.info("🎧 Splitting files with Spleeter...")
-        logger.info(f"🎵 Instrumental WAV: {instr_wav}")
-        logger.info(f"🎤 Vocal WAV: {voc_wav}")
-
         split_audio_with_spleeter(instr_wav, instr_out_dir)
         split_audio_with_spleeter(voc_wav, voc_out_dir)
 
-        instr_name = os.path.splitext(os.path.basename(instr_wav))[0]
-        voc_name = os.path.splitext(os.path.basename(voc_wav))[0]
-
-        instr_final = os.path.join(instr_out_dir, instr_name, "accompaniment.wav")
-        voc_final = os.path.join(voc_out_dir, voc_name, "vocals.wav")
+        instr_final = os.path.join(instr_out_dir, os.path.splitext(os.path.basename(instr_wav))[0], "accompaniment.wav")
+        voc_final = os.path.join(voc_out_dir, os.path.splitext(os.path.basename(voc_wav))[0], "vocals.wav")
 
         logger.info(f"🔍 Instrumental path: {instr_final}")
         logger.info(f"🔍 Vocal path:       {voc_final}")
@@ -160,7 +154,6 @@ def process_job(job):
             raise FileNotFoundError(f"❌ Vocals not found at {voc_final}")
 
         logger.info("✅ Both instrumental and vocal files found. Proceeding to merge.")
-
         merge_audio(instr_final, voc_final, remix_path)
 
         remix_url = upload_to_firebase(remix_path)
