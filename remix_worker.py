@@ -59,20 +59,22 @@ def trim_audio(input_path, output_path, duration=60):
     logging.info(f"✅ Trimmed and re-encoded to {output_path}")
 
 def split_audio_with_spleeter(input_path, output_dir):
+    abs_input_path = os.path.abspath(input_path)
+    abs_output_dir = os.path.abspath(output_dir)
+
+    logging.info(f"📂 Input path: {abs_input_path}")
+    logging.info(f"📁 Output dir: {abs_output_dir}")
+
     try:
-        logger.info(f"🔍 Splitting {input_path} using Spleeter (2 stems)...")
-        if os.path.exists(output_dir):
-            subprocess.run(["rm", "-rf", output_dir])
-        os.makedirs(output_dir, exist_ok=True)
-
         subprocess.run([
-            "spleeter", "separate", "-i", input_path,
-            "-p", "spleeter:2stems", "-o", output_dir
+            'spleeter', 'separate',
+            '-i', abs_input_path,
+            '-p', 'spleeter:2stems',
+            '-o', abs_output_dir
         ], check=True)
-
-        logger.info("✅ Spleeter separation (2 stems) completed.")
+        logging.info("✅ Spleeter processing completed")
     except subprocess.CalledProcessError as e:
-        logger.error(f"❌ Spleeter processing failed: {e}")
+        logging.error(f"❌ Spleeter processing failed: {e}")
         raise
 
 def merge_audio(instr_path, vocal_path, output_path):
