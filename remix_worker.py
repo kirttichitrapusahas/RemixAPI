@@ -4,18 +4,23 @@ import base64
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
-# Firebase setup
+# ✅ Firebase setup
 if not firebase_admin._apps:
     firebase_b64 = os.getenv("FIREBASE_CREDENTIALS_B64")
-    if firebase_b64:
-        # Decode Base64 and parse JSON
-        cred_dict = json.loads(base64.b64decode(firebase_b64))
-        cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred, {
-            'storageBucket': 'ai-song-generator-d228c.firebasestorage.app'  # ✅ Correct domain
-        })
-    else:
-        raise ValueError("Missing FIREBASE_CREDENTIALS_B64 environment variable")
+
+    if not firebase_b64:
+        try:
+            with open("firebase_credentials.b64.txt", "r") as f:
+                firebase_b64 = f.read().strip()
+        except FileNotFoundError:
+            raise ValueError("Missing FIREBASE_CREDENTIALS_B64 environment variable or firebase_credentials.b64.txt file")
+
+    # Decode Base64 and parse JSON
+    cred_dict = json.loads(base64.b64decode(firebase_b64))
+    cred = credentials.Certificate(cred_dict)
+    firebase_admin.initialize_app(cred, {
+        'storageBucket': 'ai-song-generator-d228c.firebasestorage.app'  # ✅ Correct domain
+    })
 
 db = firestore.client()
 bucket = storage.bucket()
