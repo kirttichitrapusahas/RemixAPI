@@ -134,8 +134,8 @@ def process_job(job):
 
         logger.info("🎧 Splitting files with Spleeter...")
 
-        split_audio_with_spleeter(instr_wav, REMIX_DIR)
-        split_audio_with_spleeter(voc_wav, REMIX_DIR)
+        split_audio_with_spleeter(instr_wav, "./")
+        split_audio_with_spleeter(voc_wav, "./")
 
         instr_name = os.path.splitext(instr_wav)[0]
         voc_name = os.path.splitext(voc_wav)[0]
