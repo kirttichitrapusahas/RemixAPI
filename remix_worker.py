@@ -27,7 +27,7 @@ bucket = storage.bucket()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-REMIX_DIR = "."
+REMIX_DIR = "outputs_file"
 os.makedirs(REMIX_DIR, exist_ok=True)
 
 def download_file(url, filename):
