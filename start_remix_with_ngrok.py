@@ -1,4 +1,5 @@
 import os
+import json
 from pyngrok import ngrok
 import subprocess
 import time
@@ -10,8 +11,12 @@ PORT = 10000
 public_url = ngrok.connect(PORT)
 print(f"🌍 Public URL for Remix API: {public_url}")
 
-# Optional: Set this URL as an env variable if needed
+# Save the public URL as an environment variable
 os.environ["PUBLIC_URL"] = public_url.public_url
+
+# Write it to a JSON file for the Flask app to read
+with open("ngrok_url.json", "w") as f:
+    json.dump({"url": public_url.public_url}, f)
 
 # Start the Flask server
 print("🚀 Starting Flask Remix API server...")
