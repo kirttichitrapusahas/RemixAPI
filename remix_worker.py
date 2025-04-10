@@ -140,8 +140,8 @@ def process_job(job):
         instr_name = os.path.splitext(instr_wav)[0]
         voc_name = os.path.splitext(voc_wav)[0]
 
-        instr_final = os.path.join(instr_name, "instr.wav")
-        voc_final = os.path.join(voc_name, "vocals.wav")
+        instr_final = os.path.join(instr_name, ".wav")
+        voc_final = os.path.join(voc_name, ".wav")
 
         logger.info(f"🔍 Instrumental path: {instr_final}")
         logger.info(f"🔍 Vocal path:       {voc_final}")
