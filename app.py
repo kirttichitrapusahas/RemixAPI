@@ -69,6 +69,15 @@ def remix():
         logger.exception("Failed to create remix job.")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/ngrok-url")
+def get_ngrok_url():
+    try:
+        with open("ngrok_url.json", "r") as f:
+            data = json.load(f)
+        return jsonify({"url": data.get("url")})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     print("🚀 Remix API Server is starting...")
     port = int(os.environ.get("PORT", 10000))  # Fallback for local, dynamic for Render
