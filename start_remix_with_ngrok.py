@@ -14,13 +14,13 @@ print(f"🌍 Public URL for Remix API: {public_url}")
 # Save the public URL as an environment variable
 os.environ["PUBLIC_URL"] = public_url.public_url
 
-# Write it to a JSON file for the Flask app to read
+# Write it to a JSON file for reference (optional)
 with open("ngrok_url.json", "w") as f:
     json.dump({"url": public_url.public_url}, f)
 
-# Start the Flask server
+# Start the Flask server with inherited environment
 print("🚀 Starting Flask Remix API server...")
-subprocess.Popen(["python", "app.py"])
+subprocess.Popen(["python", "app.py"], env={**os.environ})
 
 # Keep this script running so ngrok tunnel stays alive
 try:
