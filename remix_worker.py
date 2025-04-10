@@ -67,10 +67,10 @@ def split_audio_with_spleeter(input_path, output_dir):
 
     try:
         subprocess.run([
-            'spleeter', 'separate',
-            '-i', abs_input_path,
+            'spleeter', 'separate', '--',
+            input_path,
             '-p', 'spleeter:2stems',
-            '-o', abs_output_dir
+            '-o', output_dir
         ], check=True)
         logging.info("✅ Spleeter processing completed")
     except subprocess.CalledProcessError as e:
