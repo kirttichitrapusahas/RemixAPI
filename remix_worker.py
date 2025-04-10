@@ -197,17 +197,6 @@ def process_job(job):
             "error": str(e)
         })
 
-    finally:
-        logger.info(f"🧹 Cleaning up files for job {job_id}")
-        for f in [instr_trimmed, voc_trimmed, instr_wav, voc_wav, remix_path]:
-            if os.path.exists(f):
-                os.remove(f)
-                logger.info(f"🗑️ Deleted {f}")
-        for d in [instr_out_dir, voc_out_dir]:
-            if os.path.exists(d):
-                subprocess.run(["rm", "-rf", d])
-                logger.info(f"🗑️ Deleted directory {d}")
-
 def watch_queue():
     logger.info("👀 Watching for pending jobs...")
     while True:
