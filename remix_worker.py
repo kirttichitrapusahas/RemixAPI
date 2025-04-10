@@ -104,8 +104,6 @@ def process_job(job):
 
     instr_url = data['instrumental_url']
     vocals_url = data['vocals_url']
-    logger.info(f"🎵 Instrumental URL: {instr_url}")
-    logger.info(f"🎤 Vocals URL: {vocals_url}")
 
     instr_mp3 = f"{job_id}_instr.mp3"
     voc_mp3 = f"{job_id}_vocals.mp3"
@@ -137,47 +135,31 @@ def process_job(job):
         convert_to_wav(instr_trimmed, instr_wav)
         convert_to_wav(voc_trimmed, voc_wav)
 
-        print("Output dir: {OUTPUT_DIR}");
         instr_out_dir = os.path.join(OUTPUT_DIR, f"instr_{job_id}")
         voc_out_dir = os.path.join(OUTPUT_DIR, f"vocals_{job_id}")
 
-        print("instr_out_dir dir: {instr_out_dir}");
-        print("voc_out_dir dir: {voc_out_dir}");
+        logger.info("🎧 Splitting files with Spleeter...")
+        logger.info(f"🎵 Instrumental WAV: {instr_wav}")
+        logger.info(f"🎤 Vocal WAV: {voc_wav}")
 
-        print("🎧 Splitting instrumental and vocal files with Spleeter...")
-        print(f"📂 Instrumental WAV: {instr_wav}")
-        print(f"📂 Vocal WAV: {voc_wav}")
-    
         split_audio_with_spleeter(instr_wav, instr_out_dir)
         split_audio_with_spleeter(voc_wav, voc_out_dir)
-    
+
         instr_name = os.path.splitext(os.path.basename(instr_wav))[0]
         voc_name = os.path.splitext(os.path.basename(voc_wav))[0]
 
-        print("instr_name dir: {instr_name}");
-        print("voc_name dir: {voc_name}");
-    
         instr_final = os.path.join(instr_out_dir, instr_name, "accompaniment.wav")
         voc_final = os.path.join(voc_out_dir, voc_name, "vocals.wav")
-    
-        print(f"🔍 Checking paths...")
-        print(f"🎼 Expected Instrumental Output: {instr_final}")
-        print(f"🎙️ Expected Vocal Output: {voc_final}")
-    
-        print(f"📁 Instrumental Directory Exists: {os.path.exists(os.path.join(instr_out_dir, instr_name))}")
-        if os.path.exists(os.path.join(instr_out_dir, instr_name)):
-            print("📄 Files in Instrumental Output Folder:", os.listdir(os.path.join(instr_out_dir, instr_name)))
-    
-        print(f"📁 Vocal Directory Exists: {os.path.exists(os.path.join(voc_out_dir, voc_name))}")
-        if os.path.exists(os.path.join(voc_out_dir, voc_name)):
-            print("📄 Files in Vocal Output Folder:", os.listdir(os.path.join(voc_out_dir, voc_name)))
-    
+
+        logger.info(f"🔍 Instrumental path: {instr_final}")
+        logger.info(f"🔍 Vocal path:       {voc_final}")
+
         if not os.path.exists(instr_final):
             raise FileNotFoundError(f"❌ Instrumental not found at {instr_final}")
         if not os.path.exists(voc_final):
             raise FileNotFoundError(f"❌ Vocals not found at {voc_final}")
-    
-        print("✅ Both instrumental and vocal files found successfully.")
+
+        logger.info("✅ Both instrumental and vocal files found. Proceeding to merge.")
 
         merge_audio(instr_final, voc_final, remix_path)
 
