@@ -106,5 +106,5 @@ if __name__ == "__main__":
 
     update_remix_api_url_in_firestore(public_url)
 
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 8080))
     app.run(debug=True, host="0.0.0.0", port=port)
