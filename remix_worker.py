@@ -137,11 +137,11 @@ def process_job(job):
         split_audio_with_spleeter(instr_wav, ".")
         split_audio_with_spleeter(voc_wav, ".")
 
-        instr_name = os.path.splitext(instr_wav)[0]
-        voc_name = os.path.splitext(voc_wav)[0]
+        instr_folder = os.path.splitext(instr_wav)[0]
+        voc_folder = os.path.splitext(voc_wav)[0]
 
-        instr_final = f"{instr_name}.wav"
-        voc_final = f"{voc_name}.wav"
+        instr_final = os.path.join(instr_folder, "accompaniment.wav")
+        voc_final = os.path.join(voc_folder, "vocals.wav")
 
         logger.info(f"🔍 Instrumental path: {instr_final}")
         logger.info(f"🔍 Vocal path:       {voc_final}")
