@@ -22,7 +22,7 @@ RUN pip install --upgrade pip && pip install --default-timeout=100 --retries=10 
 # Copy rest of the app
 COPY . .
 
-# Expose the port Render will bind to
+# Expose the port (10000 is used by your app)
 EXPOSE 10000
 
 # Set the port env var explicitly
