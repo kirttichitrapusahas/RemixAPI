@@ -1,6 +1,12 @@
-import os, time, uuid, subprocess, requests, logging
+import os
+import time
+import uuid
+import subprocess
+import requests
+import logging
 import json
 import base64
+import shutil
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
@@ -44,7 +50,7 @@ def convert_to_wav(input_mp3, output_wav):
     logger.info(f"✅ Converted to {output_wav}")
 
 def trim_audio(input_path, output_path, duration=60):
-    logging.info(f"✂️ Trimming {input_path} to {duration} seconds...")
+    logger.info(f"✂️ Trimming {input_path} to {duration} seconds...")
     subprocess.run([
         "ffmpeg", "-y", "-i", input_path,
         "-t", str(duration),
@@ -54,14 +60,14 @@ def trim_audio(input_path, output_path, duration=60):
         "-b:a", "192k",
         output_path
     ], check=True)
-    logging.info(f"✅ Trimmed and re-encoded to {output_path}")
+    logger.info(f"✅ Trimmed and re-encoded to {output_path}")
 
 def split_audio_with_spleeter(input_path, output_dir):
     abs_input_path = os.path.abspath(input_path)
     abs_output_dir = os.path.abspath(output_dir)
 
-    logging.info(f"📂 Input path: {abs_input_path}")
-    logging.info(f"📁 Output dir: {abs_output_dir}")
+    logger.info(f"📂 Input path: {abs_input_path}")
+    logger.info(f"📁 Output dir: {abs_output_dir}")
 
     try:
         subprocess.run([
@@ -70,9 +76,9 @@ def split_audio_with_spleeter(input_path, output_dir):
             '-p', 'spleeter:2stems',
             '-o', output_dir
         ], check=True)
-        logging.info("✅ Spleeter processing completed")
+        logger.info("✅ Spleeter processing completed")
     except subprocess.CalledProcessError as e:
-        logging.error(f"❌ Spleeter processing failed: {e}")
+        logger.error(f"❌ Spleeter processing failed: {e}")
         raise
 
 def merge_audio(instr_path, vocal_path, output_path):
@@ -95,6 +101,25 @@ def upload_to_firebase(filepath):
     logger.info(f"✅ Uploaded and made public: {public_url}")
     return public_url
 
+def cleanupFiles(file_list, dir_list):
+    """
+    Delete files and directories given in the lists.
+    """
+    for file_path in file_list:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logger.info(f"🗑️ Deleted file: {file_path}")
+        except Exception as e:
+            logger.error(f"❌ Could not delete file {file_path}: {e}")
+    for dir_path in dir_list:
+        try:
+            if os.path.exists(dir_path):
+                shutil.rmtree(dir_path)
+                logger.info(f"🗑️ Deleted directory: {dir_path}")
+        except Exception as e:
+            logger.error(f"❌ Could not delete directory {dir_path}: {e}")
+
 def process_job(job):
     job_id = job.id
     data = job.to_dict()
@@ -103,6 +128,7 @@ def process_job(job):
     instr_url = data['instrumental_url']
     vocals_url = data['vocals_url']
 
+    # Define filenames based on the job_id
     instr_mp3 = f"{job_id}_instr.mp3"
     voc_mp3 = f"{job_id}_vocals.mp3"
     instr_trimmed = f"{job_id}_instr_trimmed.mp3"
@@ -111,6 +137,10 @@ def process_job(job):
     voc_wav = f"{job_id}_vocals.wav"
     remix_path = f"{job_id}_remix.mp3"
 
+    # Folders created by Spleeter: assuming they are named as the WAV file without extension
+    instr_folder = os.path.splitext(instr_wav)[0]
+    voc_folder = os.path.splitext(voc_wav)[0]
+
     try:
         download_file(instr_url, instr_mp3)
         download_file(vocals_url, voc_mp3)
@@ -118,6 +148,7 @@ def process_job(job):
         trim_audio(instr_mp3, instr_trimmed)
         trim_audio(voc_mp3, voc_trimmed)
 
+        # Remove original MP3s to free up space
         os.remove(instr_mp3)
         os.remove(voc_mp3)
 
@@ -137,11 +168,7 @@ def process_job(job):
         split_audio_with_spleeter(instr_wav, ".")
         split_audio_with_spleeter(voc_wav, ".")
 
-        # For each converted WAV file, Spleeter will create a folder with the same base name.
-        # In that folder, the instrumental file is "accompaniment.wav" and the vocal file is "vocals.wav".
-        instr_folder = os.path.splitext(instr_wav)[0]
-        voc_folder = os.path.splitext(voc_wav)[0]
-
+        # Spleeter creates directories for each separated stem.
         instr_final = os.path.join(instr_folder, "accompaniment.wav")
         voc_final = os.path.join(voc_folder, "vocals.wav")
 
@@ -171,6 +198,11 @@ def process_job(job):
             "status": "error",
             "error": str(e)
         })
+    finally:
+        # List of files and directories to clean up:
+        file_list = [instr_trimmed, voc_trimmed, instr_wav, voc_wav, remix_path]
+        dir_list = [instr_folder, voc_folder]
+        cleanupFiles(file_list, dir_list)
 
 def watch_queue():
     logger.info("👀 Watching for pending jobs...")
