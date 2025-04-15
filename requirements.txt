@@ -10,3 +10,4 @@ librosa==0.8.0
 demucs==4.0.0
 torchaudio==2.0.1
 torch==2.0.0
+pyngrok
