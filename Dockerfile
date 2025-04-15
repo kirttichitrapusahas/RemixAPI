@@ -23,10 +23,10 @@ RUN pip install --upgrade pip && pip install --default-timeout=100 --retries=10 
 COPY . .
 
 # Expose the port (10000 is used by your app)
-EXPOSE 10000
+EXPOSE 8080
 
 # Set the port env var explicitly
-ENV PORT=10000
+ENV PORT=8080
 
 # Run your app
 CMD ["python", "app.py"]
