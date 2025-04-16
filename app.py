@@ -100,11 +100,14 @@ def update_remix_api_url_in_firestore(public_url):
 if __name__ == "__main__":
     print("🚀 Remix API Server is starting...")
 
-    public_url = os.getenv("PUBLIC_URL")  # ← make sure this is passed in env vars
-    if not public_url:
-        raise ValueError("PUBLIC_URL environment variable is required on RunPod")
+    # Check for PUBLIC_URL only if present (useful for RunPod)
+    public_url = os.getenv("PUBLIC_URL")
+    if public_url:
+        update_remix_api_url_in_firestore(public_url)
+    else:
+        print("ℹ️ PUBLIC_URL not set, skipping Firestore update.")
 
-    update_remix_api_url_in_firestore(public_url)
-
+    # Get the port from environment (Cloud Run will set this to 8080)
     port = int(os.environ.get("PORT", 8080))
+    # Turn off debug mode in production
     app.run(debug=True, host="0.0.0.0", port=port)
