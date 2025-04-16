@@ -17,12 +17,13 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --default-timeout=100 --retries=10 -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --default-timeout=300 --retries=10 -r requirements.txt
 
 # Copy rest of the app
 COPY . .
 
-# Expose the port (10000 is used by your app)
+# Expose the port (8080 is used by your app)
 EXPOSE 8080
 
 # Set the port env var explicitly
