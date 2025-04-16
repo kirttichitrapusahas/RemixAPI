@@ -101,6 +101,20 @@ def upload_to_firebase(filepath):
     logger.info(f"✅ Uploaded and made public: {public_url}")
     return public_url
 
+def deleteAllRemixes():
+    """
+    Deletes all files inside the "remixes/" folder in Firebase Storage.
+    """
+    try:
+        # List all blobs in the bucket with the prefix "remixes/"
+        blobs = bucket.list_blobs(prefix="remixes/")
+        for blob in blobs:
+            blob.delete()
+            logger.info(f"🗑️ Deleted file: {blob.name}")
+        logger.info("✅ All files in the 'remixes/' folder have been deleted.")
+    except Exception as e:
+        logger.error(f"❌ Failed to delete files in the 'remixes/' folder: {e}")
+
 def cleanupFiles(file_list, dir_list):
     """
     Delete files and directories given in the lists.
@@ -203,6 +217,7 @@ def process_job(job):
         file_list = [instr_trimmed, voc_trimmed, instr_wav, voc_wav, remix_path]
         dir_list = [instr_folder, voc_folder]
         cleanupFiles(file_list, dir_list)
+        deleteAllRemixes()
 
 def watch_queue():
     logger.info("👀 Watching for pending jobs...")
