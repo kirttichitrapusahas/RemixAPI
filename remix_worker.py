@@ -2,13 +2,16 @@ import os
 import time
 import uuid
 import subprocess
-import requests
 import logging
 import json
 import base64
 import shutil
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from requests.exceptions import SSLError
 
 # ✅ Firebase setup
 if not firebase_admin._apps:
@@ -36,35 +39,39 @@ logger = logging.getLogger(__name__)
 REMIX_DIR = "outputs_file"
 os.makedirs(REMIX_DIR, exist_ok=True)
 
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-
 def download_file(url, filename):
     logger.info(f"⬇️ Downloading from {url} to {filename}")
 
-    # Build a session that retries on connection drops and server errors
-    session = requests.Session()
+    # Configure retries for both connection and read errors
     retry_strategy = Retry(
-        total=5,                    # up to 5 retries
-        backoff_factor=1,           # wait 1s, 2s, 4s… between retries
+        total=5,            # total retries
+        connect=5,          # retry on connection errors
+        read=5,             # retry on read timeouts
+        backoff_factor=1,   # wait 1s, 2s, 4s… between retries
         status_forcelist=[500, 502, 503, 504],
-        allowed_methods=["GET"],    # retry only on GET
+        allowed_methods=["GET"],
         raise_on_status=False
     )
     adapter = HTTPAdapter(max_retries=retry_strategy)
+    session = requests.Session()
     session.mount("https://", adapter)
     session.mount("http://", adapter)
 
-    try:
-        # 5s connect timeout, 30s read timeout
-        with session.get(url, stream=True, timeout=(5, 30), verify=True) as r:
+    def _do_download():
+        with session.get(url, stream=True, timeout=(5, 120), verify=True) as r:
             r.raise_for_status()
             with open(filename, "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:  # filter out keep-alives
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:  # skip keep-alive chunks
                         f.write(chunk)
         logger.info(f"✅ Downloaded {filename}")
+
+    try:
+        _do_download()
+    except SSLError as e:
+        logger.warning(f"⚠️ SSL EOF during download, retrying once: {e}")
+        time.sleep(2)
+        _do_download()
     except Exception as e:
         logger.error(f"❌ Failed to download {url}: {e}")
         raise
