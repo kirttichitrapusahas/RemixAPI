@@ -8,12 +8,14 @@ ENV PYTHONUNBUFFERED=1
 # Create app directory
 WORKDIR /app
 
-# Install system dependencies (including ffmpeg)
+# Install system dependencies (including ffmpeg and CA certs)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     git \
     wget \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+  && update-ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
