@@ -3,7 +3,7 @@
 ########################################
 # Stage 1: Install dependencies
 ########################################
-FROM python:3.9-slim AS builder
++ FROM gcr.io/ai-song-generator-453309/remix-deps:latest AS builder
 
 # Install system deps (ffmpeg, wget, git, CAs) for building and runtime
 RUN apt-get update && apt-get install -y \
