@@ -36,13 +36,38 @@ logger = logging.getLogger(__name__)
 REMIX_DIR = "outputs_file"
 os.makedirs(REMIX_DIR, exist_ok=True)
 
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 def download_file(url, filename):
     logger.info(f"⬇️ Downloading from {url} to {filename}")
-    r = requests.get(url, stream=True)
-    with open(filename, 'wb') as f:
-        for chunk in r.iter_content(1024):
-            f.write(chunk)
-    logger.info(f"✅ Downloaded {filename}")
+
+    # Build a session that retries on connection drops and server errors
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=5,                    # up to 5 retries
+        backoff_factor=1,           # wait 1s, 2s, 4s… between retries
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=["GET"],    # retry only on GET
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
+    try:
+        # 5s connect timeout, 30s read timeout
+        with session.get(url, stream=True, timeout=(5, 30), verify=True) as r:
+            r.raise_for_status()
+            with open(filename, "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:  # filter out keep-alives
+                        f.write(chunk)
+        logger.info(f"✅ Downloaded {filename}")
+    except Exception as e:
+        logger.error(f"❌ Failed to download {url}: {e}")
+        raise
 
 def convert_to_wav(input_mp3, output_wav):
     logger.info(f"🎧 Converting {input_mp3} to WAV...")
